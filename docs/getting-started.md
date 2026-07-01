@@ -29,7 +29,15 @@ This copies `config/blog-manager.php` into your app. Key options (full reference
 - `api` — enable/prefix/middleware/throttle for the optional JSON API.
 - `authorization` — `none` (default) | `gate` | a custom driver.
 
-Migrations publish from SG-3; usage examples land in [usage.md](usage.md) (SG-7/9).
+## Publish and run migrations
+
+```bash
+php artisan vendor:publish --tag=blog-manager-migrations
+php artisan migrate
+```
+
+This creates `blog_posts`, `blog_media_items`, and `blog_content_blocks` (names overridable via
+`config('blog-manager.tables')`). Usage examples land in [usage.md](usage.md) (SG-7/9).
 
 ## Documentation map
 | Doc | Contents | Status |

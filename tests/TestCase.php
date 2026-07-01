@@ -37,4 +37,12 @@ abstract class TestCase extends Orchestra
             'prefix' => '',
         ]);
     }
+
+    /**
+     * Run the package's own migrations against the in-memory database.
+     */
+    protected function defineDatabaseMigrations(): void
+    {
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+    }
 }

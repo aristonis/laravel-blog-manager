@@ -31,7 +31,9 @@ final class BlogManagerServiceProvider extends ServiceProvider
                 __DIR__.'/../config/blog-manager.php' => config_path('blog-manager.php'),
             ], 'blog-manager-config');
 
-            // Migrations are published from SG-3 (once database/migrations exists).
+            $this->publishesMigrations([
+                __DIR__.'/../database/migrations' => database_path('migrations'),
+            ], 'blog-manager-migrations');
         }
 
         // The optional JSON API is registered from SG-8, only when
