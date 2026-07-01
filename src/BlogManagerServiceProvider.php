@@ -11,6 +11,9 @@ use Aristonis\BlogManager\Blocks\Types\HeadingType;
 use Aristonis\BlogManager\Blocks\Types\ImageType;
 use Aristonis\BlogManager\Blocks\Types\ParagraphType;
 use Aristonis\BlogManager\Blocks\Types\VideoType;
+use Aristonis\BlogManager\Media\MediaAdapterManager;
+use Aristonis\BlogManager\Media\MediaKindResolver;
+use Aristonis\BlogManager\Media\MediaManager;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -31,6 +34,19 @@ final class BlogManagerServiceProvider extends ServiceProvider
         $this->app->alias('blog-manager', BlogManager::class);
 
         $this->registerBlocks();
+        $this->registerMedia();
+    }
+
+    /**
+     * Bind the media driver registry (default filesystem adapter), the kind
+     * resolver, and the media manager service. Host apps register additional
+     * adapters via MediaAdapterManager::extend() — no core edit (OCP).
+     */
+    private function registerMedia(): void
+    {
+        $this->app->singleton(MediaAdapterManager::class, fn ($app): MediaAdapterManager => new MediaAdapterManager($app));
+        $this->app->singleton(MediaKindResolver::class);
+        $this->app->singleton(MediaManager::class);
     }
 
     /**
