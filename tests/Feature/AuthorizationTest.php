@@ -9,6 +9,7 @@ use Aristonis\BlogManager\Authorization\Authorizers\NoneAuthorizer;
 use Aristonis\BlogManager\Contracts\Authorizer;
 use Aristonis\BlogManager\Exceptions\AuthorizationDeniedException;
 use Aristonis\BlogManager\Exceptions\AuthorizationDriverNotFoundException;
+use Aristonis\BlogManager\Services\PostService;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Gate;
 
@@ -72,6 +73,19 @@ it('fails loud on an unknown driver', function () {
 
     expect(fn () => app(AuthorizationManager::class)->authorizer())
         ->toThrow(AuthorizationDriverNotFoundException::class);
+});
+
+it('enforces abilities in the service layer only when enabled', function () {
+    config()->set('blog-manager.authorization.driver', 'gate'); // denies without a policy
+
+    // default: enforce_in_services = false -> service call is allowed
+    expect(app(PostService::class)->create(['title' => 'Open'])->slug)
+        ->toBe('open');
+
+    // enabled -> the same call is denied at the service layer
+    config()->set('blog-manager.authorization.enforce_in_services', true);
+    expect(fn () => app(PostService::class)->create(['title' => 'Blocked']))
+        ->toThrow(AuthorizationDeniedException::class);
 });
 
 it('exposes the ability keys', function () {

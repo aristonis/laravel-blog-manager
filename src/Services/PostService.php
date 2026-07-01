@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Aristonis\BlogManager\Services;
 
+use Aristonis\BlogManager\Authorization\Abilities;
+use Aristonis\BlogManager\Authorization\ServiceAuthorizer;
 use Aristonis\BlogManager\Events\PostCreated;
 use Aristonis\BlogManager\Events\PostDeleted;
 use Aristonis\BlogManager\Events\PostUpdated;
@@ -19,11 +21,14 @@ use Illuminate\Support\Str;
  */
 final class PostService
 {
+    public function __construct(private readonly ServiceAuthorizer $guard) {}
+
     /**
      * @param  array<string, mixed>  $attributes
      */
     public function create(array $attributes): Post
     {
+        $this->guard->ensure(Abilities::POST_CREATE);
         $title = $this->requireTitle($attributes['title'] ?? null);
         $slug = $this->uniqueSlug($this->baseSlug($attributes, $title));
 
@@ -69,6 +74,7 @@ final class PostService
      */
     public function update(Post $post, array $attributes): Post
     {
+        $this->guard->ensure(Abilities::POST_UPDATE, $post);
         $changes = [];
 
         if (array_key_exists('title', $attributes)) {
@@ -92,6 +98,8 @@ final class PostService
 
     public function delete(Post $post): void
     {
+        $this->guard->ensure(Abilities::POST_DELETE, $post);
+
         DB::transaction(function () use ($post): void {
             $post->blocks()->delete();
             $post->delete();

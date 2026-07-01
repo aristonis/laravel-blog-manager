@@ -43,9 +43,9 @@ This creates `blog_posts`, `blog_media_items`, and `blog_content_blocks` (names 
 | Doc | Contents | Status |
 |-----|----------|--------|
 | getting-started.md | install + publish | ✅ |
-| configuration.md | full config reference | SG-9 |
-| usage.md | services/facade recipes | SG-7/9 |
-| architecture.md | components, ports, data model | SG-9 |
-| extending.md | add block type / media adapter / authorizer | SG-9 |
-| errors.md | numbered error-code table | SG-2/9 |
-| events.md | event catalog | SG-7/9 |
+| configuration.md | full config reference | ✅ |
+| usage.md | services/facade recipes + API | ✅ |
+| architecture.md | components, ports, data model | ✅ |
+| extending.md | add block type / media adapter / authorizer | ✅ |
+| errors.md | numbered error-code table | ✅ |
+| events.md | event catalog | ✅ |

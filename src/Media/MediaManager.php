@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Aristonis\BlogManager\Media;
 
+use Aristonis\BlogManager\Authorization\Abilities;
+use Aristonis\BlogManager\Authorization\ServiceAuthorizer;
 use Aristonis\BlogManager\Contracts\MediaStorageAdapter;
 use Aristonis\BlogManager\Enums\MediaKind;
 use Aristonis\BlogManager\Events\MediaDeleted;
@@ -27,10 +29,12 @@ final class MediaManager
     public function __construct(
         private readonly MediaAdapterManager $adapters,
         private readonly MediaKindResolver $kinds,
+        private readonly ServiceAuthorizer $guard,
     ) {}
 
     public function store(UploadedFile $file): MediaItem
     {
+        $this->guard->ensure(Abilities::MEDIA_UPLOAD);
         $mime = $file->getMimeType() ?: $file->getClientMimeType();
         $kind = $this->kinds->resolve($mime);
 
@@ -67,6 +71,8 @@ final class MediaManager
      */
     public function delete(MediaItem $item): void
     {
+        $this->guard->ensure(Abilities::MEDIA_DELETE, $item);
+
         if ($item->blocks()->exists()) {
             throw new MediaInUseException('Media item is still referenced by a block.', ['media' => $item->public_id]);
         }

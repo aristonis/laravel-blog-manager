@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Aristonis\BlogManager\Services;
 
+use Aristonis\BlogManager\Authorization\Abilities;
+use Aristonis\BlogManager\Authorization\ServiceAuthorizer;
 use Aristonis\BlogManager\Blocks\BlockTypeRegistry;
 use Aristonis\BlogManager\Events\BlockAppended;
 use Aristonis\BlogManager\Events\BlockRemoved;
@@ -22,13 +24,17 @@ use Illuminate\Support\Facades\DB;
  */
 final class BlockService
 {
-    public function __construct(private readonly BlockTypeRegistry $registry) {}
+    public function __construct(
+        private readonly BlockTypeRegistry $registry,
+        private readonly ServiceAuthorizer $guard,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data
      */
     public function append(Post $post, string $type, array $data = [], ?MediaItem $media = null): ContentBlock
     {
+        $this->guard->ensure(Abilities::BLOCK_MANAGE, $post);
         $blockType = $this->registry->get($type);
         $requiredKind = $blockType->requiresMediaKind();
 
@@ -65,6 +71,7 @@ final class BlockService
      */
     public function update(ContentBlock $block, array $data): ContentBlock
     {
+        $this->guard->ensure(Abilities::BLOCK_MANAGE, $block);
         $normalized = $this->registry->get($block->type)->validate($data);
 
         return DB::transaction(function () use ($block, $normalized): ContentBlock {
@@ -78,6 +85,8 @@ final class BlockService
 
     public function remove(ContentBlock $block): void
     {
+        $this->guard->ensure(Abilities::BLOCK_MANAGE, $block);
+
         DB::transaction(function () use ($block): void {
             $post = $block->post;
             $block->delete();
@@ -92,6 +101,7 @@ final class BlockService
      */
     public function reorder(Post $post, array $orderedPublicIds): void
     {
+        $this->guard->ensure(Abilities::BLOCK_MANAGE, $post);
         $blocks = $post->blocks()->get()->keyBy('public_id');
         $currentIds = $blocks->keys()->all();
 
