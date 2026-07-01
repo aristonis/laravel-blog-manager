@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Aristonis\BlogManager;
 
+use Aristonis\BlogManager\Authorization\AuthorizationManager;
 use Aristonis\BlogManager\Blocks\BlockRenderer;
 use Aristonis\BlogManager\Blocks\BlockTypeRegistry;
 use Aristonis\BlogManager\Blocks\Types\FileType;
@@ -11,6 +12,7 @@ use Aristonis\BlogManager\Blocks\Types\HeadingType;
 use Aristonis\BlogManager\Blocks\Types\ImageType;
 use Aristonis\BlogManager\Blocks\Types\ParagraphType;
 use Aristonis\BlogManager\Blocks\Types\VideoType;
+use Aristonis\BlogManager\Contracts\Authorizer;
 use Aristonis\BlogManager\Media\MediaAdapterManager;
 use Aristonis\BlogManager\Media\MediaKindResolver;
 use Aristonis\BlogManager\Media\MediaManager;
@@ -35,6 +37,18 @@ final class BlogManagerServiceProvider extends ServiceProvider
 
         $this->registerBlocks();
         $this->registerMedia();
+        $this->registerAuthorization();
+    }
+
+    /**
+     * Bind the authorization driver registry and the active authorizer. Bound as
+     * a factory (not a singleton) so it re-reads the configured driver at call
+     * time; host apps register custom drivers via AuthorizationManager::extend().
+     */
+    private function registerAuthorization(): void
+    {
+        $this->app->singleton(AuthorizationManager::class, fn ($app): AuthorizationManager => new AuthorizationManager($app));
+        $this->app->bind(Authorizer::class, fn ($app): Authorizer => $app->make(AuthorizationManager::class)->authorizer());
     }
 
     /**

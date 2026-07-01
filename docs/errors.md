@@ -31,6 +31,7 @@ the host's global exception handler**.
 | 3003 | `blog.media.in_use` | 409 | `MediaInUseException` | Delete refused — still referenced |
 | 3004 | `blog.media.storage_failed` | 500 | `MediaStorageFailedException` | Adapter store/delete failed |
 | 4001 | `blog.authorization.denied` | 403 | `AuthorizationDeniedException` | Ability denied |
+| 4002 | `blog.authorization.driver_not_found` | 500 | `AuthorizationDriverNotFoundException` | Configured authorization driver missing |
 | 9001 | `blog.error` | 500 | `GenericBlogManagerException` | Unexpected fallback |
 
 Add a new error by extending `BlogManagerException` with its own `NUMBER_CODE` + `TEXT_CODE` constants and an
