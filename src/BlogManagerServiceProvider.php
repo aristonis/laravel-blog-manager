@@ -18,6 +18,8 @@ use Aristonis\BlogManager\Media\MediaKindResolver;
 use Aristonis\BlogManager\Media\MediaManager;
 use Aristonis\BlogManager\Services\BlockService;
 use Aristonis\BlogManager\Services\PostService;
+use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -99,7 +101,28 @@ final class BlogManagerServiceProvider extends ServiceProvider
             ], 'blog-manager-migrations');
         }
 
-        // The optional JSON API is registered from SG-8, only when
-        // config('blog-manager.api.enabled') is true.
+        if ((bool) config('blog-manager.api.enabled')) {
+            $this->registerApiRoutes();
+        }
+    }
+
+    /**
+     * Register the optional JSON API inside a group carrying the configured
+     * prefix, host middleware and throttle. Only called when the API is enabled.
+     */
+    private function registerApiRoutes(): void
+    {
+        $prefix = config('blog-manager.api.prefix', 'blog/api');
+        $middleware = (array) config('blog-manager.api.middleware', ['api']);
+        $rateLimit = (string) config('blog-manager.api.rate_limit', '60,1');
+
+        Route::group([
+            'prefix' => is_string($prefix) ? $prefix : 'blog/api',
+            // SubstituteBindings is always included so route-model binding works
+            // regardless of the host-configured middleware.
+            'middleware' => array_merge($middleware, ['throttle:'.$rateLimit, SubstituteBindings::class]),
+        ], function (): void {
+            $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
+        });
     }
 }

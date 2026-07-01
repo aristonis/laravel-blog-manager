@@ -1,6 +1,7 @@
 # Usage
 
-> Backend-only in v0.1: call the services from your app code. (An optional HTTP API is added in SG-8.)
+> Backend-only core: call the services from your app code. An **optional** JSON API (off by default) is
+> documented below.
 
 ## Facade and services
 Resolve the `BlogManager` facade or the individual services (`PostService`, `BlockService`, `MediaManager`).
@@ -39,6 +40,37 @@ $blocks = BlogManager::render(BlogManager::posts()->find('hello-world'));
 ## Events
 Each mutation dispatches an after-commit event you can listen for: `PostCreated/Updated/Deleted`,
 `BlockAppended/Updated/Removed`, `BlocksReordered`, `MediaStored/Deleted`. The package ships no listeners.
+
+## Optional HTTP API
+Disabled by default. Enable it and set the host guard middleware via config (published `config/blog-manager.php`):
+
+```php
+'api' => [
+    'enabled' => true,
+    'prefix' => 'blog/api',
+    'middleware' => ['api', 'auth:sanctum'], // your auth stack
+    'rate_limit' => '60,1',
+],
+```
+
+Endpoints (under the configured prefix; ids are opaque ULIDs):
+
+| Method | Path | Ability |
+|--------|------|---------|
+| GET | `posts` | — (open) |
+| GET | `posts/{post}` | — (open, returns rendered blocks) |
+| POST | `posts` | `blog.post.create` |
+| PUT | `posts/{post}` | `blog.post.update` |
+| DELETE | `posts/{post}` | `blog.post.delete` |
+| POST | `posts/{post}/blocks` | `blog.block.manage` |
+| POST | `posts/{post}/blocks/reorder` | `blog.block.manage` |
+| PUT | `blocks/{block}` | `blog.block.manage` |
+| DELETE | `blocks/{block}` | `blog.block.manage` |
+| POST | `media` (multipart `file`) | `blog.media.upload` |
+| DELETE | `media/{media}` | `blog.media.delete` |
+
+Write abilities are enforced through the pluggable authorizer (default `none` = allow-all); reads are open.
+Package errors render as JSON `{ "error_code", "error_key", "message" }` (see [errors.md](errors.md)).
 
 ## Configuration & authorization
 See [configuration.md](configuration.md). Authorization is pluggable and off by default — see

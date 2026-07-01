@@ -9,6 +9,7 @@ use Aristonis\BlogManager\Exceptions\GenericBlogManagerException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * A blog post: the top-level container that owns identity, addressing and an
@@ -20,6 +21,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $title
  * @property string $slug
  * @property int|string|null $author_id
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 final class Post extends Model
 {
