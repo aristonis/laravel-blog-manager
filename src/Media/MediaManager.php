@@ -6,6 +6,8 @@ namespace Aristonis\BlogManager\Media;
 
 use Aristonis\BlogManager\Contracts\MediaStorageAdapter;
 use Aristonis\BlogManager\Enums\MediaKind;
+use Aristonis\BlogManager\Events\MediaDeleted;
+use Aristonis\BlogManager\Events\MediaStored;
 use Aristonis\BlogManager\Exceptions\MediaInUseException;
 use Aristonis\BlogManager\Exceptions\MediaStorageFailedException;
 use Aristonis\BlogManager\Exceptions\MediaValidationException;
@@ -38,7 +40,7 @@ final class MediaManager
         $ref = $adapter->store($file, $kind);
 
         try {
-            return MediaItem::create([
+            $media = MediaItem::create([
                 'kind' => $kind,
                 'mime' => $mime,
                 'size' => (int) ($file->getSize() ?: 0),
@@ -48,6 +50,10 @@ final class MediaManager
                 'path' => $ref->path,
                 'meta' => $ref->meta === [] ? null : $ref->meta,
             ]);
+
+            event(new MediaStored($media));
+
+            return $media;
         } catch (Throwable $e) {
             $this->compensate($adapter, $ref);
 
@@ -70,6 +76,8 @@ final class MediaManager
         DB::transaction(function () use ($item, $adapter): void {
             $adapter->delete($item);
             $item->delete();
+
+            event(new MediaDeleted($item));
         });
     }
 

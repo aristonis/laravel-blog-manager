@@ -16,6 +16,8 @@ use Aristonis\BlogManager\Contracts\Authorizer;
 use Aristonis\BlogManager\Media\MediaAdapterManager;
 use Aristonis\BlogManager\Media\MediaKindResolver;
 use Aristonis\BlogManager\Media\MediaManager;
+use Aristonis\BlogManager\Services\BlockService;
+use Aristonis\BlogManager\Services\PostService;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -32,8 +34,10 @@ final class BlogManagerServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/blog-manager.php', 'blog-manager');
 
-        $this->app->singleton('blog-manager', fn (): BlogManager => new BlogManager);
-        $this->app->alias('blog-manager', BlogManager::class);
+        $this->app->singleton(PostService::class);
+        $this->app->singleton(BlockService::class);
+        $this->app->singleton(BlogManager::class);
+        $this->app->alias(BlogManager::class, 'blog-manager');
 
         $this->registerBlocks();
         $this->registerMedia();
