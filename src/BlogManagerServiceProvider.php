@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace Aristonis\BlogManager;
 
+use Aristonis\BlogManager\Blocks\BlockRenderer;
+use Aristonis\BlogManager\Blocks\BlockTypeRegistry;
+use Aristonis\BlogManager\Blocks\Types\FileType;
+use Aristonis\BlogManager\Blocks\Types\HeadingType;
+use Aristonis\BlogManager\Blocks\Types\ImageType;
+use Aristonis\BlogManager\Blocks\Types\ParagraphType;
+use Aristonis\BlogManager\Blocks\Types\VideoType;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -22,6 +29,28 @@ final class BlogManagerServiceProvider extends ServiceProvider
 
         $this->app->singleton('blog-manager', fn (): BlogManager => new BlogManager);
         $this->app->alias('blog-manager', BlogManager::class);
+
+        $this->registerBlocks();
+    }
+
+    /**
+     * Bind the block-type registry (seeded with the default types) and renderer.
+     * Host apps register additional types by resolving the registry and calling
+     * register() from their own provider — no core edit (OCP).
+     */
+    private function registerBlocks(): void
+    {
+        $this->app->singleton(BlockTypeRegistry::class, function (): BlockTypeRegistry {
+            $registry = new BlockTypeRegistry;
+
+            foreach ([HeadingType::class, ParagraphType::class, ImageType::class, VideoType::class, FileType::class] as $type) {
+                $registry->register(new $type);
+            }
+
+            return $registry;
+        });
+
+        $this->app->singleton(BlockRenderer::class, fn ($app): BlockRenderer => new BlockRenderer($app->make(BlockTypeRegistry::class)));
     }
 
     public function boot(): void
