@@ -28,3 +28,11 @@ Homestead.json
 .env.production
 .phpactor.json
 auth.json
+
+# IDEs
+.idea
+
+# Package tooling
+/build
+/.phpunit.cache
+composer.lock

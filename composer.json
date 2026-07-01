@@ -1,0 +1,57 @@
+{
+    "name": "aristonis/laravel-blog-manager",
+    "description": "Backend Laravel package to manage blog posts as ordered content blocks (text + media) with a pluggable, contracts-first media layer.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["laravel", "blog", "cms", "content-blocks", "media", "package"],
+    "authors": [
+        { "name": "Aristonis" }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^11.0 || ^12.0",
+        "illuminate/database": "^11.0 || ^12.0",
+        "illuminate/filesystem": "^11.0 || ^12.0",
+        "illuminate/http": "^11.0 || ^12.0",
+        "illuminate/contracts": "^11.0 || ^12.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0 || ^10.0",
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0",
+        "laravel/pint": "^1.0",
+        "larastan/larastan": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Aristonis\\BlogManager\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Aristonis\\BlogManager\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "test:coverage": "pest --coverage",
+        "lint": "pint",
+        "analyse": "phpstan analyse"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Aristonis\\BlogManager\\BlogManagerServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
