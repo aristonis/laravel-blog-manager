@@ -18,6 +18,10 @@ return new class extends Migration
             // Nullable, unconstrained author reference to the host-configured model
             // (no DB FK: the author table belongs to the host and may differ per app).
             $table->unsignedBigInteger('author_id')->nullable()->index();
+            // Lifecycle: draft by default. Visibility is computed from status +
+            // published_at (published AND published_at <= now); no 'scheduled' state.
+            $table->string('status')->default('draft')->index();
+            $table->timestamp('published_at')->nullable()->index();
             $table->timestamps();
         });
     }
