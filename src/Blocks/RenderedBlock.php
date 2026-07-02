@@ -6,18 +6,22 @@ namespace Aristonis\BlogManager\Blocks;
 
 /**
  * Immutable, presentation-ready view of a single block: its opaque id, type,
- * position, and the type-specific sanitized payload. This is what a host renders.
+ * position, the type-specific sanitized `payload`, and the raw stored `source`.
+ * Exposing both lets a decoupled frontend render server HTML or re-theme from
+ * the raw data (e.g. render the markdown itself).
  */
 final class RenderedBlock
 {
     /**
-     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $payload  sanitized, presentation-ready output
+     * @param  array<string, mixed>  $source  the raw stored block data
      */
     public function __construct(
         public readonly string $id,
         public readonly string $type,
         public readonly int $position,
         public readonly array $payload,
+        public readonly array $source = [],
     ) {}
 
     /**
@@ -29,6 +33,7 @@ final class RenderedBlock
             'id' => $this->id,
             'type' => $this->type,
             'position' => $this->position,
+            'source' => $this->source,
             'payload' => $this->payload,
         ];
     }

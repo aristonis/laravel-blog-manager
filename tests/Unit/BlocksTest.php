@@ -105,3 +105,14 @@ it('renders a block via its type, wrapping block meta', function () {
         ->and($rendered->position)->toBe(3)
         ->and($rendered->payload['html'])->toBe('<p>hi</p>');
 });
+
+it('exposes the raw source alongside the rendered payload', function () {
+    $block = new ContentBlock(['type' => 'paragraph', 'position' => 0, 'data' => ['format' => 'markdown', 'content' => '**hi**']]);
+    $block->public_id = '01ABC';
+
+    $rendered = app(BlockRenderer::class)->render($block);
+
+    expect($rendered->source)->toBe(['format' => 'markdown', 'content' => '**hi**'])
+        ->and($rendered->toArray()['source'])->toBe(['format' => 'markdown', 'content' => '**hi**'])
+        ->and($rendered->toArray()['payload']['html'])->toContain('<strong>hi</strong>');
+});

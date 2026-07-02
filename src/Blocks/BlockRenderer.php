@@ -27,6 +27,7 @@ final class BlockRenderer
             $block->type,
             (int) $block->position,
             $type->renderPayload($data, $mediaUrl),
+            $data,
         );
     }
 }
