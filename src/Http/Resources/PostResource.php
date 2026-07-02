@@ -26,6 +26,8 @@ final class PostResource extends JsonResource
             'title' => $post->title,
             'slug' => $post->slug,
             'author_id' => $post->author_id,
+            'status' => $post->status->value,
+            'published_at' => $post->published_at,
             'created_at' => $post->created_at,
             'updated_at' => $post->updated_at,
         ];

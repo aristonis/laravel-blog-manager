@@ -73,6 +73,14 @@ final class Post extends Model
         $query->where('status', PostStatus::Draft->value);
     }
 
+    /** Whether the post is publicly visible right now (Published and past its published_at). */
+    public function isVisible(): bool
+    {
+        return $this->status === PostStatus::Published
+            && $this->published_at !== null
+            && $this->published_at->lessThanOrEqualTo(now());
+    }
+
     /**
      * @return HasMany<ContentBlock, $this>
      */

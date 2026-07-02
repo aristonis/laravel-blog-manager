@@ -20,6 +20,10 @@ Route::put('posts/{post}', [PostController::class, 'update'])
     ->middleware(EnsureAbility::class.':'.Abilities::POST_UPDATE);
 Route::delete('posts/{post}', [PostController::class, 'destroy'])
     ->middleware(EnsureAbility::class.':'.Abilities::POST_DELETE);
+Route::post('posts/{post}/publish', [PostController::class, 'publish'])
+    ->middleware(EnsureAbility::class.':'.Abilities::POST_UPDATE);
+Route::post('posts/{post}/unpublish', [PostController::class, 'unpublish'])
+    ->middleware(EnsureAbility::class.':'.Abilities::POST_UPDATE);
 
 Route::post('posts/{post}/blocks', [BlockController::class, 'store'])
     ->middleware(EnsureAbility::class.':'.Abilities::BLOCK_MANAGE);

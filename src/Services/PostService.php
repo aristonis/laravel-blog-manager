@@ -41,6 +41,7 @@ final class PostService
                 'title' => $title,
                 'slug' => $slug,
                 'author_id' => $attributes['author_id'] ?? null,
+                'status' => PostStatus::Draft,
             ]);
 
             event(new PostCreated($post));
