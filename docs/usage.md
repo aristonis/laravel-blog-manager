@@ -48,6 +48,9 @@ $blocks = BlogManager::render(BlogManager::posts()->find('hello-world'));
 //    'payload' => ['format'=>'markdown', 'html'=>'<p><strong>hi</strong></p>']], ... ]
 ```
 
+> **`source` is raw, unsanitized author input** — for client-side re-rendering/re-theming. Sanitize it before
+> injecting as HTML. `payload` is already sanitized (safe to render directly).
+
 ## Events
 Each mutation dispatches an after-commit event you can listen for: `PostCreated/Updated/Deleted`,
 `PostPublished/Unpublished`, `BlockAppended/Updated/Removed`, `BlocksReordered`, `MediaStored/Deleted`.

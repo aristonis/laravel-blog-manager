@@ -24,8 +24,10 @@ Cross-origin frontend? Configure Laravel's native CORS (`config/cors.php`) — t
 ## The content contract (this is the key part)
 Every block is a **`{ source, payload }`** pair, so the frontend chooses how to render:
 - `source` — the raw stored data (e.g. `{ "format": "markdown", "content": "**hi**" }`). Render/re-theme it yourself.
+  **It is UNSANITIZED author input** — if you turn it into HTML, sanitize it (or run markdown through a
+  tag-stripping renderer) first. Do **not** `innerHTML` it verbatim.
 - `payload` — the sanitized, presentation-ready output (e.g. `{ "format": "markdown", "html": "<p>...</p>" }`).
-  Drop it straight into the DOM.
+  Drop it straight into the DOM. This is the safe path.
 
 `GET posts/{id}` returns the post plus its blocks in authored order:
 ```json

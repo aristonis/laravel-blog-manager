@@ -83,7 +83,11 @@ return [
     | 'none'  => allow every ability (default, so the backend works on install)
     | 'gate'  => delegate to Laravel Gate / host policies
     | <custom> => a driver registered by the host (e.g. spatie-permission backed)
-    | enforce_in_services: also check abilities inside the service layer.
+    |
+    | The API edge checks the ability alone (global "can this user update posts?"),
+    | not per-post ownership. For per-post/ownership policies to apply to write
+    | operations (update/delete/publish/unpublish), set enforce_in_services => true;
+    | the services then re-check the ability with the specific post/block as subject.
     */
     'authorization' => [
         'driver' => 'none',

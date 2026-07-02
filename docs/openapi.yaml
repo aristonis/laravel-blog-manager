@@ -323,7 +323,10 @@ components:
         source:
           type: object
           additionalProperties: true
-          description: Raw stored data (shape varies by type, e.g. { format, content }).
+          description: >
+            Raw, UNSANITIZED stored data (shape varies by type, e.g. { format, content }).
+            For editors and client-side re-rendering only — never inject it into the DOM as
+            HTML without your own sanitizer. Use `payload` for safe, ready-to-render output.
         payload:
           type: object
           additionalProperties: true
