@@ -7,6 +7,7 @@ namespace Aristonis\BlogManager\Http\Controllers;
 use Aristonis\BlogManager\Authorization\Abilities;
 use Aristonis\BlogManager\BlogManager;
 use Aristonis\BlogManager\Contracts\Authorizer;
+use Aristonis\BlogManager\Exceptions\InvalidPostDataException;
 use Aristonis\BlogManager\Exceptions\PostNotFoundException;
 use Aristonis\BlogManager\Http\Resources\PostResource;
 use Aristonis\BlogManager\Models\Post;
@@ -64,10 +65,28 @@ final class PostController
 
     public function publish(Request $request, Post $post): PostResource
     {
-        $at = $request->input('published_at');
-        $when = is_string($at) && $at !== '' ? Carbon::parse($at) : null;
+        return new PostResource($this->posts->publish($post, $this->parsePublishedAt($request->input('published_at'))));
+    }
 
-        return new PostResource($this->posts->publish($post, $when));
+    /**
+     * Parse an optional published_at from raw request input. Invalid input is a
+     * catchable package error (422), never an unhandled 500.
+     */
+    private function parsePublishedAt(mixed $at): ?Carbon
+    {
+        if (! is_string($at) || $at === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($at);
+        } catch (\InvalidArgumentException) {
+            // Carbon\Exceptions\InvalidFormatException extends \InvalidArgumentException.
+            throw new InvalidPostDataException(
+                'The published_at value must be a valid date.',
+                ['field' => 'published_at'],
+            );
+        }
     }
 
     public function unpublish(Post $post): PostResource

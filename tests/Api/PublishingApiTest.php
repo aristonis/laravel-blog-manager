@@ -51,6 +51,14 @@ it('schedules a post via the API with a future published_at', function () {
     $this->getJson("blog/api/posts/{$id}")->assertNotFound();
 });
 
+it('rejects a malformed published_at with a 422 error envelope', function () {
+    $id = $this->postJson('blog/api/posts', ['title' => 'P'])->json('data.id');
+
+    $this->postJson("blog/api/posts/{$id}/publish", ['published_at' => 'not-a-date'])
+        ->assertStatus(422)
+        ->assertJsonPath('error_key', 'blog.post.invalid_data');
+});
+
 it('includes drafts for a caller that holds the update ability (default allow-all)', function () {
     app(PostService::class)->create(['title' => 'Draft']);
 
