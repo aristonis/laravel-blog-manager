@@ -14,13 +14,14 @@ concurrency:
 
 jobs:
   test:
-    name: Pest · PHP ${{ matrix.php }} · Laravel ${{ matrix.laravel }}
+    name: Pest · PHP ${{ matrix.php }} · Laravel ${{ matrix.laravel }} · ${{ matrix.stability }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         php: ['8.2', '8.3', '8.4', '8.5']
         laravel: ['12.*', '13.*']
+        stability: ['prefer-stable', 'prefer-lowest']
         include:
           - laravel: '12.*'
             testbench: '10.*'
@@ -46,7 +47,7 @@ jobs:
           composer require --dev --no-interaction --no-update \
             "laravel/framework:${{ matrix.laravel }}" \
             "orchestra/testbench:${{ matrix.testbench }}"
-          composer update --prefer-dist --prefer-stable --no-interaction
+          composer update --prefer-dist --${{ matrix.stability }} --no-interaction
 
       - name: Run test suite
         run: vendor/bin/pest
@@ -73,7 +74,6 @@ jobs:
       - name: Static analysis (Larastan)
         run: vendor/bin/phpstan analyse --memory-limit=1G
 
-      # Coverage is reported, not gated: the enforced --min threshold will be
-      # added once a green CI run establishes the real baseline (no PCOV locally).
-      - name: Coverage (report only)
-        run: vendor/bin/pest --coverage
+      # Baseline 93.8% (green CI run, 2026-07-02); gated at 90% for headroom.
+      - name: Coverage (min 90%)
+        run: vendor/bin/pest --coverage --min=90
