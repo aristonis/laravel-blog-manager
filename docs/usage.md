@@ -50,7 +50,8 @@ $blocks = BlogManager::render(BlogManager::posts()->find('hello-world'));
 
 ## Events
 Each mutation dispatches an after-commit event you can listen for: `PostCreated/Updated/Deleted`,
-`BlockAppended/Updated/Removed`, `BlocksReordered`, `MediaStored/Deleted`. The package ships no listeners.
+`PostPublished/Unpublished`, `BlockAppended/Updated/Removed`, `BlocksReordered`, `MediaStored/Deleted`.
+The package ships no listeners. See [events.md](events.md).
 
 ## Optional HTTP API
 Disabled by default. Enable it and set the host guard middleware via config (published `config/blog-manager.php`):

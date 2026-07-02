@@ -9,6 +9,8 @@ listeners**; these exist for your app to hook into.
 | `Events\PostCreated` | `Post $post` | A post is created |
 | `Events\PostUpdated` | `Post $post` | A post's attributes change |
 | `Events\PostDeleted` | `Post $post` | A post (and its blocks) is deleted |
+| `Events\PostPublished` | `Post $post` | A post is published (or scheduled) |
+| `Events\PostUnpublished` | `Post $post` | A post is returned to draft |
 | `Events\BlockAppended` | `ContentBlock $block` | A block is appended |
 | `Events\BlockUpdated` | `ContentBlock $block` | A block's payload changes |
 | `Events\BlockRemoved` | `ContentBlock $block` | A block is removed (others re-sequenced) |
