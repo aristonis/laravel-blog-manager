@@ -18,10 +18,12 @@ return new class extends Migration
             $table->ulid('public_id')->unique();
             $table->foreignId('post_id')->constrained($posts)->cascadeOnDelete();
             $table->string('type'); // registry key
-            $table->unsignedInteger('position'); // unique + contiguous per post (enforced in BlockService)
+            $table->unsignedInteger('position'); // contiguous 0..n-1 per post (kept by BlockService)
             $table->json('data')->nullable(); // type payload
             $table->foreignId('media_item_id')->nullable()->constrained($media)->nullOnDelete();
-            $table->index(['post_id', 'position']);
+            // Uniqueness enforced at the DB; BlockService reorders in two phases to
+            // avoid a transient collision inside the transaction.
+            $table->unique(['post_id', 'position']);
             $table->timestamps();
         });
     }

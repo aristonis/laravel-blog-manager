@@ -116,11 +116,18 @@ final class BlockService
         }
 
         DB::transaction(function () use ($post, $orderedPublicIds, $blocks): void {
-            foreach ($orderedPublicIds as $position => $publicId) {
-                $block = $blocks->get($publicId);
-                if ($block instanceof ContentBlock && $block->position !== $position) {
-                    $block->update(['position' => $position]);
-                }
+            // Two-phase write so the DB-level unique(post_id, position) never sees a
+            // transient collision: first park every block above the final range, then
+            // seat each at its final contiguous position. The two ranges are disjoint,
+            // so no intermediate step ever duplicates a (post_id, position) pair.
+            $offset = count($orderedPublicIds);
+
+            foreach ($orderedPublicIds as $finalPosition => $publicId) {
+                $blocks->get($publicId)?->update(['position' => $finalPosition + $offset]);
+            }
+
+            foreach ($orderedPublicIds as $finalPosition => $publicId) {
+                $blocks->get($publicId)?->update(['position' => $finalPosition]);
             }
 
             event(new BlocksReordered($post));
