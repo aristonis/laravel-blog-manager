@@ -6,12 +6,16 @@ namespace Aristonis\BlogManager\Services;
 
 use Aristonis\BlogManager\Authorization\Abilities;
 use Aristonis\BlogManager\Authorization\ServiceAuthorizer;
+use Aristonis\BlogManager\Enums\PostStatus;
 use Aristonis\BlogManager\Events\PostCreated;
 use Aristonis\BlogManager\Events\PostDeleted;
+use Aristonis\BlogManager\Events\PostPublished;
+use Aristonis\BlogManager\Events\PostUnpublished;
 use Aristonis\BlogManager\Events\PostUpdated;
 use Aristonis\BlogManager\Exceptions\InvalidPostDataException;
 use Aristonis\BlogManager\Exceptions\PostNotFoundException;
 use Aristonis\BlogManager\Models\Post;
+use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -45,13 +49,19 @@ final class PostService
         });
     }
 
-    /** Find a post by its public id or slug, with blocks + media eager-loaded. */
-    public function find(string $idOrSlug): Post
+    /**
+     * Find a post by its public id or slug, with blocks + media eager-loaded.
+     * When $onlyPublished is true, a draft/scheduled post is treated as absent
+     * (scope-before-authorize: callers surface a 404, never a 403).
+     */
+    public function find(string $idOrSlug, bool $onlyPublished = false): Post
     {
         $post = Post::query()
             ->with('blocks.mediaItem')
-            ->where('public_id', $idOrSlug)
-            ->orWhere('slug', $idOrSlug)
+            ->when($onlyPublished, fn ($query) => $query->published())
+            ->where(fn ($query) => $query
+                ->where('public_id', $idOrSlug)
+                ->orWhere('slug', $idOrSlug))
             ->first();
 
         if ($post === null) {
@@ -64,9 +74,51 @@ final class PostService
     /**
      * @return LengthAwarePaginator<int, Post>
      */
-    public function paginate(int $perPage = 15): LengthAwarePaginator
+    public function paginate(int $perPage = 15, bool $onlyPublished = false): LengthAwarePaginator
     {
-        return Post::query()->orderByDesc('id')->paginate($perPage);
+        $query = $onlyPublished
+            ? Post::query()->published()->orderByDesc('published_at')
+            : Post::query()->orderByDesc('id');
+
+        return $query->paginate($perPage);
+    }
+
+    /**
+     * Publish a post. A future $at schedules it (Published, but not yet visible
+     * until published_at passes — see PostStatus). Dispatches PostPublished
+     * after commit.
+     */
+    public function publish(Post $post, ?DateTimeInterface $at = null): Post
+    {
+        $this->guard->ensure(Abilities::POST_UPDATE, $post);
+
+        return DB::transaction(function () use ($post, $at): Post {
+            $post->update([
+                'status' => PostStatus::Published,
+                'published_at' => $at ?? now(),
+            ]);
+
+            event(new PostPublished($post));
+
+            return $post->refresh();
+        });
+    }
+
+    /** Return a post to draft (clears published_at). Dispatches PostUnpublished after commit. */
+    public function unpublish(Post $post): Post
+    {
+        $this->guard->ensure(Abilities::POST_UPDATE, $post);
+
+        return DB::transaction(function () use ($post): Post {
+            $post->update([
+                'status' => PostStatus::Draft,
+                'published_at' => null,
+            ]);
+
+            event(new PostUnpublished($post));
+
+            return $post->refresh();
+        });
     }
 
     /**
