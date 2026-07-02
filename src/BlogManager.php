@@ -21,7 +21,7 @@ final class BlogManager
     /**
      * Package version — the single source of truth for the release string.
      */
-    public const VERSION = '0.1.0';
+    public const VERSION = '0.2.0';
 
     public function __construct(
         private readonly PostService $posts,
