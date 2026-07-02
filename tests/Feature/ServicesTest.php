@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Aristonis\BlogManager\BlogManager;
 use Aristonis\BlogManager\Enums\MediaKind;
+use Aristonis\BlogManager\Events\BlockUpdated;
 use Aristonis\BlogManager\Events\MediaStored;
 use Aristonis\BlogManager\Events\PostCreated;
 use Aristonis\BlogManager\Exceptions\BlockKindMismatchException;
@@ -72,6 +73,22 @@ it('appends blocks in authored order', function () {
     $ordered = $post->fresh()->blocks;
     expect($ordered->pluck('type')->all())->toBe(['heading', 'paragraph'])
         ->and($ordered->pluck('position')->all())->toBe([0, 1]);
+});
+
+it('updates a block payload and dispatches BlockUpdated after commit', function () {
+    $fired = 0;
+    Event::listen(BlockUpdated::class, function () use (&$fired) {
+        $fired++;
+    });
+
+    $post = posts()->create(['title' => 'P']);
+    $block = blocks()->append($post, 'paragraph', ['format' => 'plain', 'content' => 'one']);
+
+    $updated = blocks()->update($block, ['format' => 'plain', 'content' => 'two']);
+
+    expect($updated->data['content'])->toBe('two')
+        ->and($block->fresh()->data['content'])->toBe('two')
+        ->and($fired)->toBe(1);
 });
 
 it('rejects a media block whose media kind does not match', function () {
