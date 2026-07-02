@@ -14,7 +14,14 @@ $post = BlogManager::posts()->create(['title' => 'Hello world', 'author_id' => $
 $post = BlogManager::posts()->find('hello-world');          // by slug or public id
 BlogManager::posts()->update($post, ['title' => 'Hello, world']);
 BlogManager::posts()->delete($post);                        // cascades blocks, keeps media
-$page = BlogManager::posts()->paginate(15);
+$page = BlogManager::posts()->paginate(15);                 // all posts
+$page = BlogManager::posts()->paginate(15, onlyPublished: true); // published + past published_at only
+
+// Publishing lifecycle (draft by default). Scheduling is computed — a future
+// published_at is Published but not visible until then; no separate state, no cron.
+BlogManager::posts()->publish($post);                       // publish now
+BlogManager::posts()->publish($post, now()->addDay());      // schedule
+BlogManager::posts()->unpublish($post);                     // back to draft
 
 // Blocks (appended in authored order)
 BlogManager::blocks()->append($post, 'heading', ['text' => 'Intro', 'level' => 1]);
@@ -30,11 +37,15 @@ BlogManager::media()->delete($image);                       // refused while a b
 ```
 
 ## Rendering
-`render()` returns an ordered list of sanitized payloads — text as safe HTML, media with a resolved URL:
+`render()` returns an ordered list of blocks, each carrying both the raw **`source`** (the stored data) and the
+sanitized **`payload`** (safe HTML / resolved media URL) — so a frontend can drop in the HTML or re-theme from
+the source:
 
 ```php
 $blocks = BlogManager::render(BlogManager::posts()->find('hello-world'));
-// [ ['id'=>..., 'type'=>'heading', 'position'=>0, 'payload'=>['level'=>1,'html'=>'<h1>Intro</h1>']], ... ]
+// [ ['id'=>..., 'type'=>'paragraph', 'position'=>0,
+//    'source'  => ['format'=>'markdown', 'content'=>'**hi**'],
+//    'payload' => ['format'=>'markdown', 'html'=>'<p><strong>hi</strong></p>']], ... ]
 ```
 
 ## Events
@@ -57,11 +68,13 @@ Endpoints (under the configured prefix; ids are opaque ULIDs):
 
 | Method | Path | Ability |
 |--------|------|---------|
-| GET | `posts` | — (open) |
-| GET | `posts/{post}` | — (open, returns rendered blocks) |
+| GET | `posts` | — (open, published-only¹) |
+| GET | `posts/{post}` | — (open, published-only¹; blocks as `{source, payload}`) |
 | POST | `posts` | `blog.post.create` |
 | PUT | `posts/{post}` | `blog.post.update` |
 | DELETE | `posts/{post}` | `blog.post.delete` |
+| POST | `posts/{post}/publish` | `blog.post.update` |
+| POST | `posts/{post}/unpublish` | `blog.post.update` |
 | POST | `posts/{post}/blocks` | `blog.block.manage` |
 | POST | `posts/{post}/blocks/reorder` | `blog.block.manage` |
 | PUT | `blocks/{block}` | `blog.block.manage` |
@@ -69,8 +82,14 @@ Endpoints (under the configured prefix; ids are opaque ULIDs):
 | POST | `media` (multipart `file`) | `blog.media.upload` |
 | DELETE | `media/{media}` | `blog.media.delete` |
 
-Write abilities are enforced through the pluggable authorizer (default `none` = allow-all); reads are open.
+Write abilities are enforced through the pluggable authorizer (default `none` = allow-all).
+¹ **Reads are open but published-only:** a caller holding `blog.post.update` (author view) also sees drafts/
+scheduled; a hidden post is a **404** (never 403). With the default `none` driver every caller is an author, so
+configure a real authorizer for a public site.
+
 Package errors render as JSON `{ "error_code", "error_key", "message" }` (see [errors.md](errors.md)).
+**Full contract:** [`openapi.yaml`](openapi.yaml) (OpenAPI 3.1). Frontend integration recipe:
+[`../.ai/skills/drive-the-blog-from-any-frontend.md`](../.ai/skills/drive-the-blog-from-any-frontend.md).
 
 ## Configuration & authorization
 See [configuration.md](configuration.md). Authorization is pluggable and off by default — see

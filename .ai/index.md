@@ -7,6 +7,7 @@ changing code — they encode how to use and extend the package correctly and fa
 1. **[conventions.md](conventions.md)** — the hard rules. Non-negotiable. Read first.
 2. Task skills (added per step-group in `skills/`):
    - `skills/using-the-package.md` — create a post, add ordered blocks, attach media (SG-7).
+   - `skills/drive-the-blog-from-any-frontend.md` — publish/schedule + the JSON API `{source, payload}` contract for a decoupled frontend (v0.2).
    - `skills/add-block-type.md` — register a new block type without editing the core (SG-4).
    - `skills/add-media-adapter.md` — register a media storage adapter (SG-5).
    - `skills/add-authorizer.md` — register an authorization driver (SG-6).
