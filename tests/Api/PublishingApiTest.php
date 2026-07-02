@@ -39,6 +39,18 @@ it('hides drafts from public reads and 404s a hidden post under a restricting dr
     $this->getJson("blog/api/posts/{$draftId}")->assertNotFound();
 });
 
+it('schedules a post via the API with a future published_at', function () {
+    $id = $this->postJson('blog/api/posts', ['title' => 'Later'])->json('data.id');
+
+    $this->postJson("blog/api/posts/{$id}/publish", ['published_at' => now()->addDay()->toIso8601String()])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'published');
+
+    // Scheduled (future published_at) -> hidden from published-only reads.
+    config()->set('blog-manager.authorization.driver', 'gate');
+    $this->getJson("blog/api/posts/{$id}")->assertNotFound();
+});
+
 it('includes drafts for a caller that holds the update ability (default allow-all)', function () {
     app(PostService::class)->create(['title' => 'Draft']);
 
