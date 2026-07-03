@@ -15,12 +15,16 @@ return new class extends Migration
 
         Schema::create($this->table('post_category', 'blog_post_category'), function (Blueprint $table) use ($posts, $categories): void {
             // Pivot holds only the FK pair — no per-post ordering, no payload (§2.2).
-            // constrained() indexes each FK; the composite unique makes membership
-            // idempotent at the DB (a duplicate pair is rejected). Deleting either
-            // side clears the association (a taxonomy op never deletes content).
+            // The composite unique makes membership idempotent at the DB (a duplicate
+            // pair is rejected). Deleting either side clears the association (a taxonomy
+            // op never deletes content).
             $table->foreignId('post_id')->constrained($posts)->cascadeOnDelete();
             $table->foreignId('category_id')->constrained($categories)->cascadeOnDelete();
             $table->unique(['post_id', 'category_id']);
+            // postsByCategory() filters on category_id; the unique above leads with
+            // post_id and Postgres does not auto-index FK columns, so index it explicitly
+            // (leading with category_id, covering post_id for the join).
+            $table->index(['category_id', 'post_id']);
         });
     }
 
