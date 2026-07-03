@@ -26,7 +26,6 @@ This copies `config/blog-manager.php` into your app. Key options (full reference
 - `author_model` — the host model posts may reference as author (nullable).
 - `tables` — override table names to avoid collisions.
 - `media` — storage adapter, disk/path, allowed MIME + size caps per kind.
-- `api` — enable/prefix/middleware/throttle for the optional JSON API.
 - `authorization` — `none` (default) | `gate` | a custom driver.
 
 ## Publish and run migrations
@@ -44,7 +43,7 @@ This creates `blog_posts`, `blog_media_items`, and `blog_content_blocks` (names 
 |-----|----------|--------|
 | getting-started.md | install + publish | ✅ |
 | configuration.md | full config reference | ✅ |
-| usage.md | services/facade recipes + API | ✅ |
+| usage.md | services/facade recipes | ✅ |
 | architecture.md | components, ports, data model | ✅ |
 | extending.md | add block type / media adapter / authorizer | ✅ |
 | errors.md | numbered error-code table | ✅ |

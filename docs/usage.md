@@ -1,7 +1,7 @@
 # Usage
 
-> Backend-only core: call the services from your app code. An **optional** JSON API (off by default) is
-> documented below.
+> Core-only: call the services from your app code. The package ships no HTTP layer — your app owns the
+> transport (web controllers, a JSON API, Livewire, CLI) over these same services.
 
 ## Facade and services
 Resolve the `BlogManager` facade or the individual services (`PostService`, `BlockService`, `MediaManager`).
@@ -56,44 +56,13 @@ Each mutation dispatches an after-commit event you can listen for: `PostCreated/
 `PostPublished/Unpublished`, `BlockAppended/Updated/Removed`, `BlocksReordered`, `MediaStored/Deleted`.
 The package ships no listeners. See [events.md](events.md).
 
-## Optional HTTP API
-Disabled by default. Enable it and set the host guard middleware via config (published `config/blog-manager.php`):
-
-```php
-'api' => [
-    'enabled' => true,
-    'prefix' => 'blog/api',
-    'middleware' => ['api', 'auth:sanctum'], // your auth stack
-    'rate_limit' => '60,1',
-],
-```
-
-Endpoints (under the configured prefix; ids are opaque ULIDs):
-
-| Method | Path | Ability |
-|--------|------|---------|
-| GET | `posts` | — (open, published-only¹) |
-| GET | `posts/{post}` | — (open, published-only¹; blocks as `{source, payload}`) |
-| POST | `posts` | `blog.post.create` |
-| PUT | `posts/{post}` | `blog.post.update` |
-| DELETE | `posts/{post}` | `blog.post.delete` |
-| POST | `posts/{post}/publish` | `blog.post.update` |
-| POST | `posts/{post}/unpublish` | `blog.post.update` |
-| POST | `posts/{post}/blocks` | `blog.block.manage` |
-| POST | `posts/{post}/blocks/reorder` | `blog.block.manage` |
-| PUT | `blocks/{block}` | `blog.block.manage` |
-| DELETE | `blocks/{block}` | `blog.block.manage` |
-| POST | `media` (multipart `file`) | `blog.media.upload` |
-| DELETE | `media/{media}` | `blog.media.delete` |
-
-Write abilities are enforced through the pluggable authorizer (default `none` = allow-all).
-¹ **Reads are open but published-only:** a caller holding `blog.post.update` (author view) also sees drafts/
-scheduled; a hidden post is a **404** (never 403). With the default `none` driver every caller is an author, so
-configure a real authorizer for a public site.
-
-Package errors render as JSON `{ "error_code", "error_key", "message" }` (see [errors.md](errors.md)).
-**Full contract:** [`openapi.yaml`](openapi.yaml) (OpenAPI 3.1). Frontend integration recipe:
-[`../.ai/skills/drive-the-blog-from-any-frontend.md`](../.ai/skills/drive-the-blog-from-any-frontend.md).
+## Building your own transport
+The package ships no controllers or routes — you wire your own. Call the services from a web controller, a
+JSON API, a Livewire component, or a console command; you own the URL shape, auth, pagination, and response
+envelope. Enforce abilities either in your transport layer or inside the services (set
+`authorization.enforce_in_services=true`). Published-only reads: pass `onlyPublished: true` to
+`paginate()` / `find()`, and treat a hidden post as a **404** in your controller. Package errors self-render as
+JSON `{ "error_code", "error_key", "message" }` when the client expects JSON (see [errors.md](errors.md)).
 
 ## Configuration & authorization
 See [configuration.md](configuration.md). Authorization is pluggable and off by default — see

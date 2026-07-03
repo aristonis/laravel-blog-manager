@@ -18,17 +18,14 @@ use Aristonis\BlogManager\Media\MediaKindResolver;
 use Aristonis\BlogManager\Media\MediaManager;
 use Aristonis\BlogManager\Services\BlockService;
 use Aristonis\BlogManager\Services\PostService;
-use Illuminate\Routing\Middleware\SubstituteBindings;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 /**
  * The connection point between the package and Laravel.
  *
  * `register()` merges the package config and binds the container services.
- * `boot()` wires publishing and (in later step-groups) migrations and the
- * optional API routes. Domain services and the extension registries are bound
- * here as they are introduced per step-group.
+ * `boot()` wires config + migration publishing. The package ships no HTTP
+ * layer (core-only, D25); the host owns its own transport over the services.
  */
 final class BlogManagerServiceProvider extends ServiceProvider
 {
@@ -100,29 +97,5 @@ final class BlogManagerServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations' => database_path('migrations'),
             ], 'blog-manager-migrations');
         }
-
-        if ((bool) config('blog-manager.api.enabled')) {
-            $this->registerApiRoutes();
-        }
-    }
-
-    /**
-     * Register the optional JSON API inside a group carrying the configured
-     * prefix, host middleware and throttle. Only called when the API is enabled.
-     */
-    private function registerApiRoutes(): void
-    {
-        $prefix = config('blog-manager.api.prefix', 'blog/api');
-        $middleware = (array) config('blog-manager.api.middleware', ['api']);
-        $rateLimit = (string) config('blog-manager.api.rate_limit', '60,1');
-
-        Route::group([
-            'prefix' => is_string($prefix) ? $prefix : 'blog/api',
-            // SubstituteBindings is always included so route-model binding works
-            // regardless of the host-configured middleware.
-            'middleware' => array_merge($middleware, ['throttle:'.$rateLimit, SubstituteBindings::class]),
-        ], function (): void {
-            $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
-        });
     }
 }

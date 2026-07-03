@@ -4,6 +4,28 @@ All notable changes to `aristonis/laravel-blog-manager` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Repositioned as a **core-only domain library**: the package ships domain services
+and a facade — no HTTP layer. Each host owns its own transport **and** API contract
+(contracts and business rules are per-project). All domain behaviour is unchanged.
+
+### Removed — BREAKING
+- **The optional HTTP API is gone (D25).** Deleted `src/Http/**` (Post/Block/Media
+  controllers + resources, `EnsureAbility` middleware), `routes/api.php`, the `api.*`
+  config block, `docs/openapi.yaml`, and the `drive-the-blog-from-any-frontend` recipe.
+
+### Changed
+- Drive the blog through the `BlogManager` facade / the services and wire your own
+  controllers, JSON API, Livewire, or CLI over them.
+- Authorization: with `enforce_in_services=false` (default) the host authorizes in its
+  own transport; set it `true` to enforce abilities inside the services on every mutation.
+
+### Retained (unchanged)
+- Publishing lifecycle (draft/published + computed scheduling), the `{ source, payload }`
+  block contract, DB `unique(post_id, position)` + two-phase reorder, after-commit domain
+  events, and numbered-code self-rendering exceptions.
+
 ## [0.2.0] - unreleased
 
 Backend-only, headless: the client owns the frontend (any tool, any theme). This

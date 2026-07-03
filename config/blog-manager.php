@@ -64,30 +64,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | HTTP API (optional, off by default)
-    |--------------------------------------------------------------------------
-    | When enabled, a thin JSON API over the services is registered under the
-    | given prefix, guarded by the host-configured middleware + throttle.
-    */
-    'api' => [
-        'enabled' => false,
-        'prefix' => 'blog/api',
-        'middleware' => ['api'],
-        'rate_limit' => '60,1', // throttle: max attempts, per minutes
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
     | Authorization (pluggable, allow-all by default)
     |--------------------------------------------------------------------------
     | 'none'  => allow every ability (default, so the backend works on install)
     | 'gate'  => delegate to Laravel Gate / host policies
     | <custom> => a driver registered by the host (e.g. spatie-permission backed)
     |
-    | The API edge checks the ability alone (global "can this user update posts?"),
-    | not per-post ownership. For per-post/ownership policies to apply to write
-    | operations (update/delete/publish/unpublish), set enforce_in_services => true;
-    | the services then re-check the ability with the specific post/block as subject.
+    | By default (enforce_in_services => false) the services do not check
+    | abilities — the host authorizes in its own transport layer. Set
+    | enforce_in_services => true to enforce abilities inside the services on
+    | every mutation (create/update/delete/publish/unpublish); the services then
+    | check the ability with the specific post/block as subject, so per-post /
+    | ownership policies apply.
     */
     'authorization' => [
         'driver' => 'none',

@@ -24,7 +24,8 @@ the core** (OCP). The package defines ability keys and delegates the decision �
 
 3. **Select + enforce** via config:
    - `authorization.driver` = `none` (default, allow-all) | `gate` | your driver key.
-   - `authorization.enforce_in_services` = `true` to also guard the service layer (default: API edge only).
+   - `authorization.enforce_in_services` = `true` to enforce abilities inside the services on every mutation
+     (default: `false` — the host authorizes in its own transport layer).
 
 ## Built-in drivers
 - `none` — allow everything (default).

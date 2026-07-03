@@ -23,7 +23,11 @@ A modular Laravel package: Eloquent persistence + transaction-owning services, w
 - **Exceptions** — `Exceptions\BlogManagerException` carries a numeric + string code and self-renders to JSON.
   See [errors.md](errors.md).
 - **Events** — nine `ShouldDispatchAfterCommit` events; no listeners shipped. See [events.md](events.md).
-- **HTTP API** — optional adapter (`Http/`, `routes/api.php`), off by default, guarded by `EnsureAbility`.
+
+## No HTTP layer (core-only)
+The package ships **no controllers, routes, resources, or HTTP middleware** (D25). It is a service/facade core;
+the host wires its own transport (web controllers, JSON API, Livewire, CLI — whatever it needs) over the same
+services, and owns its own API contract and business rules.
 
 ## Data model
 ```

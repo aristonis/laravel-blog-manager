@@ -18,6 +18,5 @@ Direct equivalents:
 
 ## Test layout
 - `tests/Unit/` — pure logic (exceptions, block types, renderer).
-- `tests/Feature/` — services, models, media (default `TestCase`, API disabled).
-- `tests/Api/` — the optional API (`ApiEnabledTestCase`, `api.enabled=true`, host middleware cleared).
+- `tests/Feature/` — services, models, media, publishing (default `TestCase`).
 - New tests are RED-first; keep logic coverage ≥ 80%.

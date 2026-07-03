@@ -9,8 +9,9 @@ use Illuminate\Contracts\Auth\Factory as AuthFactory;
 /**
  * Optional service-layer ability enforcement. When
  * `config('blog-manager.authorization.enforce_in_services')` is true, the
- * services call this before a mutation; otherwise it is a no-op (enforcement
- * happens only at the API edge). Resolves the current user from the host guard.
+ * services call this before a mutation; otherwise it is a no-op and the host is
+ * responsible for authorizing in its own transport layer. Resolves the current
+ * user from the host guard.
  */
 final class ServiceAuthorizer
 {

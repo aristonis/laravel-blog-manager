@@ -22,12 +22,8 @@ php artisan vendor:publish --tag=blog-manager-config
 | `media.allowed_mime.video` | mp4/webm/ogg | Allowed video MIME types. |
 | `media.allowed_mime.file` | `[]` (**empty**) | **No file types allowed by default** — opt in explicitly. |
 | `media.max_size.{image,video,file}` | 5 / 100 / 20 MB | Per-kind size caps (bytes). |
-| `api.enabled` | `false` | Register the optional JSON API. |
-| `api.prefix` | `blog/api` | Route prefix. |
-| `api.middleware` | `['api']` | Host middleware applied to API routes (add your auth here). |
-| `api.rate_limit` | `60,1` | `throttle` config (max attempts, minutes). |
 | `authorization.driver` | `none` | `none` (allow-all) · `gate` · a custom driver key. |
-| `authorization.enforce_in_services` | `false` | Also enforce abilities in the service layer (default: API edge only). |
+| `authorization.enforce_in_services` | `false` | Enforce abilities inside the services on every mutation. Default `false` — the host authorizes in its own transport layer. |
 
 ## Notes
 - **Secure file default:** `media.allowed_mime.file` ships empty; file blocks stay unusable until you list MIME types.
