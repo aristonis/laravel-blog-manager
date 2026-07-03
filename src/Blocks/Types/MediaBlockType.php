@@ -37,7 +37,10 @@ abstract class MediaBlockType implements BlockType
 
     public function renderPayload(array $data, ?string $mediaUrl): array
     {
-        $payload = ['url' => $mediaUrl];
+        // Escape the URL like caption/alt: a custom adapter may embed
+        // user-influenced data in the URL, which would otherwise be a stored-XSS
+        // vector in an HTML context. Null (no backing media) stays null (L5).
+        $payload = ['url' => $mediaUrl !== null ? e($mediaUrl) : null];
 
         foreach (['caption', 'alt'] as $field) {
             if (isset($data[$field]) && is_string($data[$field])) {

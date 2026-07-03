@@ -67,6 +67,21 @@ it('validates and escapes a heading', function () {
     expect(fn () => $type->validate(['text' => 'ok', 'level' => 9]))->toThrow(InvalidBlockDataException::class);
 });
 
+it('clamps an out-of-range heading level on render (L1)', function () {
+    $type = new HeadingType;
+
+    // validate() enforces 1-6 on input, but a restored / hand-written snapshot
+    // can carry an out-of-range level; render must clamp so it never emits a
+    // bogus <h99>/<h0> tag.
+    $high = $type->renderPayload(['level' => 99, 'text' => 'Hi'], null);
+    expect($high['level'])->toBe(6)
+        ->and($high['html'])->toBe('<h6>Hi</h6>');
+
+    $low = $type->renderPayload(['level' => 0, 'text' => 'Hi'], null);
+    expect($low['level'])->toBe(1)
+        ->and($low['html'])->toBe('<h1>Hi</h1>');
+});
+
 it('renders markdown safely and plain text escaped', function () {
     $type = new ParagraphType;
 
@@ -91,6 +106,22 @@ it('declares the required media kind and renders a media payload', function () {
         ->toBe(['url' => 'https://cdn/x.png', 'caption' => 'cap', 'alt' => 'x &lt;b&gt;']);
 
     expect(fn () => $image->validate(['alt' => 123]))->toThrow(InvalidBlockDataException::class);
+});
+
+it('escapes the media url in the render payload (L5)', function () {
+    $image = new ImageType;
+
+    // A custom adapter URL can embed user-influenced data; it must be e()-escaped
+    // like caption/alt so a rendered payload can never carry an injection vector.
+    $escaped = $image->renderPayload([], '"><script>alert(1)</script>');
+    expect($escaped['url'])->toBe(e('"><script>alert(1)</script>'))
+        ->and($escaped['url'])->not->toContain('<script>');
+
+    // A benign hashed URL (no HTML-special chars) round-trips unchanged.
+    expect($image->renderPayload([], 'https://cdn/x.png')['url'])->toBe('https://cdn/x.png');
+
+    // Null media (no backing item) stays a real null, not the string "".
+    expect($image->renderPayload([], null)['url'])->toBeNull();
 });
 
 it('renders a block via its type, wrapping block meta', function () {

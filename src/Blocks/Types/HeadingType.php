@@ -45,6 +45,10 @@ final class HeadingType implements BlockType
     public function renderPayload(array $data, ?string $mediaUrl): array
     {
         $level = is_int($data['level'] ?? null) ? $data['level'] : self::DEFAULT_LEVEL;
+        // Clamp on render: validate() enforces 1-6 on input, but a restored or
+        // hand-written snapshot can carry an out-of-range level, so we must never
+        // emit a bogus <h99>/<h0> tag (L1).
+        $level = max(self::MIN_LEVEL, min(self::MAX_LEVEL, $level));
         $text = is_string($data['text'] ?? null) ? $data['text'] : '';
 
         return [
