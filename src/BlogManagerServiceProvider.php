@@ -18,6 +18,7 @@ use Aristonis\BlogManager\Media\MediaKindResolver;
 use Aristonis\BlogManager\Media\MediaManager;
 use Aristonis\BlogManager\Services\BlockService;
 use Aristonis\BlogManager\Services\PostService;
+use Aristonis\BlogManager\Services\RevisionService;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -35,6 +36,7 @@ final class BlogManagerServiceProvider extends ServiceProvider
 
         $this->app->singleton(PostService::class);
         $this->app->singleton(BlockService::class);
+        $this->app->singleton(RevisionService::class);
         $this->app->singleton(BlogManager::class);
         $this->app->alias(BlogManager::class, 'blog-manager');
 

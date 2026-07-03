@@ -10,6 +10,7 @@ use Aristonis\BlogManager\Models\ContentBlock;
 use Aristonis\BlogManager\Models\Post;
 use Aristonis\BlogManager\Services\BlockService;
 use Aristonis\BlogManager\Services\PostService;
+use Aristonis\BlogManager\Services\RevisionService;
 
 /**
  * Root entry point, resolved from the container as `blog-manager` and proxied by
@@ -21,13 +22,14 @@ final class BlogManager
     /**
      * Package version — the single source of truth for the release string.
      */
-    public const VERSION = '0.2.0';
+    public const VERSION = '0.3.0';
 
     public function __construct(
         private readonly PostService $posts,
         private readonly BlockService $blocks,
         private readonly MediaManager $media,
         private readonly BlockRenderer $renderer,
+        private readonly RevisionService $revisions,
     ) {}
 
     public function posts(): PostService
@@ -43,6 +45,11 @@ final class BlogManager
     public function media(): MediaManager
     {
         return $this->media;
+    }
+
+    public function revisions(): RevisionService
+    {
+        return $this->revisions;
     }
 
     /**

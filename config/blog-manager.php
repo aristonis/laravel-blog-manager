@@ -83,4 +83,27 @@ return [
         'enforce_in_services' => false,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Revisions
+    |--------------------------------------------------------------------------
+    | Post revision history. A revision is a full immutable snapshot of a post
+    | (attributes + ordered block tree; media referenced by id, never copied).
+    */
+    'revisions' => [
+        // Auto-capture a revision whenever a post is published (freezes what
+        // went live). Manual snapshots via RevisionService::snapshot() are
+        // always available regardless of this flag.
+        'snapshot_on_publish' => true,
+
+        // How many revisions to keep per post. null = unlimited; an integer
+        // prunes the oldest beyond N after each capture.
+        'keep' => null,
+
+        // What restore() does when a snapshot references media that was since
+        // deleted: 'strict' throws with the missing list; 'lenient' restores
+        // the other blocks, drops the missing ones, and returns the list.
+        'on_missing_media' => 'strict',
+    ],
+
 ];
