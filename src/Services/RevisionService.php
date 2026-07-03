@@ -17,6 +17,7 @@ use Aristonis\BlogManager\Models\ContentBlock;
 use Aristonis\BlogManager\Models\MediaItem;
 use Aristonis\BlogManager\Models\Post;
 use Aristonis\BlogManager\Models\PostRevision;
+use Aristonis\BlogManager\Support\SlugGenerator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,7 @@ final class RevisionService
     public function __construct(
         private readonly ServiceAuthorizer $guard,
         private readonly BlockTypeRegistry $registry,
+        private readonly SlugGenerator $slugs,
     ) {}
 
     /**
@@ -299,7 +301,7 @@ final class RevisionService
             $post->title = $attributes['title'];
         }
 
-        $post->slug = $this->uniqueSlug(Str::slug((string) ($attributes['slug'] ?? $post->slug)), $post->id);
+        $post->slug = $this->slugs->unique(Post::class, Str::slug((string) ($attributes['slug'] ?? $post->slug)), $post->id, 'post');
 
         // author_id is intentionally NOT restored: it is ownership-sensitive, and a
         // restore should not silently reassign a post's author. A host that wants to
@@ -348,27 +350,5 @@ final class RevisionService
         $keepIds = $post->revisions()->orderByDesc('id')->limit($keep)->pluck('id');
 
         $post->revisions()->whereNotIn('id', $keepIds)->delete();
-    }
-
-    /**
-     * Mirrors PostService's slug rule; kept local so this service does not depend
-     * on PostService (which depends on this one for publish-time snapshots).
-     */
-    private function uniqueSlug(string $base, int $ignoreId): string
-    {
-        $slug = $base === '' ? 'post' : $base;
-        $candidate = $slug;
-        $suffix = 2;
-
-        while (Post::query()
-            ->where('slug', $candidate)
-            ->where('id', '!=', $ignoreId)
-            ->exists()
-        ) {
-            $candidate = $slug.'-'.$suffix;
-            $suffix++;
-        }
-
-        return $candidate;
     }
 }

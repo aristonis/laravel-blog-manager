@@ -15,6 +15,7 @@ use Aristonis\BlogManager\Events\PostUpdated;
 use Aristonis\BlogManager\Exceptions\InvalidPostDataException;
 use Aristonis\BlogManager\Exceptions\PostNotFoundException;
 use Aristonis\BlogManager\Models\Post;
+use Aristonis\BlogManager\Support\SlugGenerator;
 use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ final class PostService
     public function __construct(
         private readonly ServiceAuthorizer $guard,
         private readonly RevisionService $revisions,
+        private readonly SlugGenerator $slugs,
     ) {}
 
     /**
@@ -37,7 +39,7 @@ final class PostService
     {
         $this->guard->ensure(Abilities::POST_CREATE);
         $title = $this->requireTitle($attributes['title'] ?? null);
-        $slug = $this->uniqueSlug($this->baseSlug($attributes, $title));
+        $slug = $this->slugs->unique(Post::class, $this->baseSlug($attributes, $title), fallback: 'post');
 
         return DB::transaction(function () use ($title, $slug, $attributes): Post {
             $post = Post::create([
@@ -143,7 +145,7 @@ final class PostService
             $changes['title'] = $this->requireTitle($attributes['title']);
         }
         if (array_key_exists('slug', $attributes)) {
-            $changes['slug'] = $this->uniqueSlug(Str::slug((string) $attributes['slug']), $post->id);
+            $changes['slug'] = $this->slugs->unique(Post::class, Str::slug((string) $attributes['slug']), $post->id, 'post');
         }
         if (array_key_exists('author_id', $attributes)) {
             $changes['author_id'] = $attributes['author_id'];
@@ -187,23 +189,5 @@ final class PostService
         $slug = $attributes['slug'] ?? null;
 
         return is_string($slug) && $slug !== '' ? Str::slug($slug) : Str::slug($title);
-    }
-
-    private function uniqueSlug(string $base, ?int $ignoreId = null): string
-    {
-        $slug = $base === '' ? 'post' : $base;
-        $candidate = $slug;
-        $suffix = 2;
-
-        while (Post::query()
-            ->where('slug', $candidate)
-            ->when($ignoreId !== null, fn ($query) => $query->where('id', '!=', $ignoreId))
-            ->exists()
-        ) {
-            $candidate = $slug.'-'.$suffix;
-            $suffix++;
-        }
-
-        return $candidate;
     }
 }
