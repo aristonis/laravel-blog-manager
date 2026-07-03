@@ -36,7 +36,7 @@ Revision errors reuse the post/media ranges (1003, 3005).
 | 4001 | `blog.authorization.denied` | 403 | `AuthorizationDeniedException` | Ability denied |
 | 4002 | `blog.authorization.driver_not_found` | 500 | `AuthorizationDriverNotFoundException` | Configured authorization driver missing |
 | 5001 | `blog.category.not_found` | 404 | `CategoryNotFoundException` | Category missing by public id/slug |
-| 5002 | `blog.tag.not_found` | 404 | `TagNotFoundException` | Tag missing by public id/name |
+| 5002 | `blog.tag.not_found` | 404 | `TagNotFoundException` | Tag missing by public id, slug, or name |
 | 5003 | `blog.taxonomy.invalid_data` | 422 | `InvalidTaxonomyDataException` | Empty name or duplicate category name |
 | 9001 | `blog.error` | 500 | `GenericBlogManagerException` | Unexpected fallback |
 

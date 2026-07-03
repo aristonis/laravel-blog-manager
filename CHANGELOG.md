@@ -29,6 +29,17 @@ service package. No HTTP layer; drive it through the `BlogManager` facade.
 - **Config** `taxonomy.tags.auto_create` (default true) and `tables.{categories, tags,
   post_category, post_tag}`.
 
+### Security / Integrity
+- **Unique category names enforced at the database** (not just the service) — the
+  curated-name invariant can't be raced by concurrent creates.
+- **`public_id` is not mass-assignable** on `Category`/`Tag` — the opaque ULID is
+  always package-generated, never host-supplied.
+- **Term-membership indexes** on the pivots (`category_id`/`tag_id` leading) and on
+  `blog_tags.name` — the by-term and attach-by-name reads stay indexed on PostgreSQL,
+  not just MySQL.
+- **Stable newest-first pagination** — the published read branch breaks a `published_at`
+  tie by id so posts can't skip/duplicate across page boundaries.
+
 ### Notes
 - Flat categories only — nesting (with descendant rollup) is deferred.
 - Pre-first-release: schema changes edit the original create-table migrations in place.
