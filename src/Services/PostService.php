@@ -178,7 +178,9 @@ final class PostService
             throw new InvalidPostDataException('A post requires a non-empty title.', ['field' => 'title']);
         }
 
-        return $title;
+        // Store the trimmed value (mirrors TaxonomyService::requireName) so a
+        // padded title is never persisted with surrounding whitespace (L4).
+        return trim($title);
     }
 
     /**

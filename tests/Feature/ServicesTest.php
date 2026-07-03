@@ -9,6 +9,7 @@ use Aristonis\BlogManager\Events\MediaStored;
 use Aristonis\BlogManager\Events\PostCreated;
 use Aristonis\BlogManager\Exceptions\BlockKindMismatchException;
 use Aristonis\BlogManager\Exceptions\BlockPositionOutOfRangeException;
+use Aristonis\BlogManager\Exceptions\InvalidPostDataException;
 use Aristonis\BlogManager\Exceptions\PostNotFoundException;
 use Aristonis\BlogManager\Media\MediaManager;
 use Aristonis\BlogManager\Models\ContentBlock;
@@ -38,6 +39,19 @@ it('creates a post with a derived unique slug', function () {
     expect($a->slug)->toBe('my-first-post')
         ->and($b->slug)->toBe('my-first-post-2')
         ->and($a->public_id)->toHaveLength(26);
+});
+
+it('trims surrounding whitespace from a post title on create (L4)', function () {
+    // requireTitle validates on the trimmed value but must also STORE the
+    // trimmed value (mirrors TaxonomyService::requireName) so a padded title
+    // is never persisted with surrounding whitespace.
+    $post = posts()->create(['title' => '  Padded  ']);
+
+    expect($post->fresh()->title)->toBe('Padded');
+
+    // A whitespace-only title still fails validation.
+    expect(fn () => posts()->create(['title' => '   ']))
+        ->toThrow(InvalidPostDataException::class);
 });
 
 it('finds a post by public id or slug with ordered blocks', function () {
