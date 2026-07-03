@@ -25,7 +25,10 @@ use Illuminate\Support\Str;
  */
 final class PostService
 {
-    public function __construct(private readonly ServiceAuthorizer $guard) {}
+    public function __construct(
+        private readonly ServiceAuthorizer $guard,
+        private readonly RevisionService $revisions,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $attributes
@@ -98,6 +101,12 @@ final class PostService
                 'status' => PostStatus::Published,
                 'published_at' => $at ?? now(),
             ]);
+
+            // Auto-capture what went live (D26/O-1). Manual snapshots stay
+            // available; a host can opt out via revisions.snapshot_on_publish.
+            if ((bool) config('blog-manager.revisions.snapshot_on_publish', true)) {
+                $this->revisions->snapshot($post, 'published');
+            }
 
             event(new PostPublished($post));
 
