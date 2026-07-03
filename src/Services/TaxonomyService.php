@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace Aristonis\BlogManager\Services;
 
+use Aristonis\BlogManager\Authorization\Abilities;
+use Aristonis\BlogManager\Authorization\ServiceAuthorizer;
 use Aristonis\BlogManager\Events\CategoryCreated;
 use Aristonis\BlogManager\Events\CategoryDeleted;
 use Aristonis\BlogManager\Events\CategoryUpdated;
+use Aristonis\BlogManager\Events\PostCategorized;
+use Aristonis\BlogManager\Events\PostTagged;
 use Aristonis\BlogManager\Events\TagCreated;
 use Aristonis\BlogManager\Events\TagDeleted;
 use Aristonis\BlogManager\Events\TagUpdated;
+use Aristonis\BlogManager\Exceptions\CategoryNotFoundException;
 use Aristonis\BlogManager\Exceptions\InvalidTaxonomyDataException;
+use Aristonis\BlogManager\Exceptions\TagNotFoundException;
 use Aristonis\BlogManager\Models\Category;
+use Aristonis\BlogManager\Models\Post;
 use Aristonis\BlogManager\Models\Tag;
 use Aristonis\BlogManager\Support\SlugGenerator;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,6 +35,7 @@ use Illuminate\Support\Str;
 final class TaxonomyService
 {
     public function __construct(
+        private readonly ServiceAuthorizer $guard,
         private readonly SlugGenerator $slugs,
     ) {}
 
@@ -150,6 +158,308 @@ final class TaxonomyService
 
             event(new TagDeleted($tag));
         });
+    }
+
+    // ---- attach / detach: a post's terms (§2.2, FR-52/53/54) ---------------
+
+    /**
+     * Attach categories to a post (idempotent; duplicate pivots are ignored).
+     * Pass $sync = true (or call syncCategories) to replace the post's category
+     * set instead. Every category must pre-exist and is given as a Category
+     * model or its public-id string; an unknown id throws
+     * CategoryNotFoundException. Runs in one transaction; PostCategorized
+     * (added + removed) fires after commit. Guarded by blog.post.update.
+     *
+     * @param  iterable<Category|string>  $categories
+     */
+    public function categorize(Post $post, iterable $categories, bool $sync = false): void
+    {
+        $this->guard->ensure(Abilities::POST_UPDATE, $post);
+        $this->writeCategories($post, $categories, $sync);
+    }
+
+    /**
+     * Replace the post's entire category set with the given categories,
+     * detaching any not listed. See {@see categorize()} for accepted input.
+     *
+     * @param  iterable<Category|string>  $categories
+     */
+    public function syncCategories(Post $post, iterable $categories): void
+    {
+        $this->guard->ensure(Abilities::POST_UPDATE, $post);
+        $this->writeCategories($post, $categories, true);
+    }
+
+    /**
+     * Detach the given categories from the post (idempotent — detaching an
+     * unattached category is a no-op). PostCategorized fires after commit with
+     * the removed set. Guarded by blog.post.update.
+     *
+     * @param  iterable<Category|string>  $categories
+     */
+    public function uncategorize(Post $post, iterable $categories): void
+    {
+        $this->guard->ensure(Abilities::POST_UPDATE, $post);
+
+        DB::transaction(function () use ($post, $categories): void {
+            $ids = $this->resolveCategoryIds($categories);
+            $removed = $this->attachedCategoryKeys($post, $ids);
+            $post->categories()->detach($ids);
+
+            event(new PostCategorized($post, [], $this->categoriesByKey($removed)));
+        });
+    }
+
+    /**
+     * Attach tags to a post (idempotent). Pass $sync = true (or call syncTags)
+     * to replace the post's tag set instead. A tag is given as a Tag model, a
+     * public-id string, or a NAME string: a ULID-shaped string resolves an
+     * existing tag by public id (unknown id → TagNotFoundException); any other
+     * string is a name, resolved to an existing tag or, when
+     * taxonomy.tags.auto_create is on (default), find-or-created via
+     * {@see createTag()} so slug + TagCreated stay consistent (else
+     * TagNotFoundException). Runs in one transaction; PostTagged (added +
+     * removed) fires after commit. Guarded by blog.post.update.
+     *
+     * @param  iterable<Tag|string>  $tags
+     */
+    public function tag(Post $post, iterable $tags, bool $sync = false): void
+    {
+        $this->guard->ensure(Abilities::POST_UPDATE, $post);
+        $this->writeTags($post, $tags, $sync);
+    }
+
+    /**
+     * Replace the post's entire tag set with the given tags, detaching any not
+     * listed. See {@see Tag()} for accepted input.
+     *
+     * @param  iterable<Tag|string>  $tags
+     */
+    public function syncTags(Post $post, iterable $tags): void
+    {
+        $this->guard->ensure(Abilities::POST_UPDATE, $post);
+        $this->writeTags($post, $tags, true);
+    }
+
+    /**
+     * Detach the given tags from the post (idempotent). PostTagged fires after
+     * commit with the removed set. Guarded by blog.post.update.
+     *
+     * @param  iterable<Tag|string>  $tags
+     */
+    public function untag(Post $post, iterable $tags): void
+    {
+        $this->guard->ensure(Abilities::POST_UPDATE, $post);
+
+        DB::transaction(function () use ($post, $tags): void {
+            $ids = $this->resolveTagIds($tags);
+            $removed = $this->attachedTagKeys($post, $ids);
+            $post->tags()->detach($ids);
+
+            event(new PostTagged($post, [], $this->tagsByKey($removed)));
+        });
+    }
+
+    /**
+     * Attach or replace the post's categories in one transaction, dispatching
+     * the PostCategorized delta the pivot sync reports.
+     *
+     * @param  iterable<Category|string>  $categories
+     */
+    private function writeCategories(Post $post, iterable $categories, bool $replace): void
+    {
+        DB::transaction(function () use ($post, $categories, $replace): void {
+            $ids = $this->resolveCategoryIds($categories);
+            $changes = $replace
+                ? $post->categories()->sync($ids)
+                : $post->categories()->syncWithoutDetaching($ids);
+
+            event(new PostCategorized(
+                $post,
+                $this->categoriesByKey($changes['attached']),
+                $this->categoriesByKey($changes['detached']),
+            ));
+        });
+    }
+
+    /**
+     * Attach or replace the post's tags in one transaction (auto-created tags
+     * roll back with the pivot on failure), dispatching the PostTagged delta.
+     *
+     * @param  iterable<Tag|string>  $tags
+     */
+    private function writeTags(Post $post, iterable $tags, bool $replace): void
+    {
+        DB::transaction(function () use ($post, $tags, $replace): void {
+            $ids = $this->resolveTagIds($tags);
+            $changes = $replace
+                ? $post->tags()->sync($ids)
+                : $post->tags()->syncWithoutDetaching($ids);
+
+            event(new PostTagged(
+                $post,
+                $this->tagsByKey($changes['attached']),
+                $this->tagsByKey($changes['detached']),
+            ));
+        });
+    }
+
+    /**
+     * Resolve category inputs to a de-duplicated list of primary keys.
+     *
+     * @param  iterable<Category|string>  $categories
+     * @return list<int>
+     */
+    private function resolveCategoryIds(iterable $categories): array
+    {
+        $ids = [];
+
+        foreach ($categories as $category) {
+            $ids[] = $this->resolveCategory($category)->id;
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * Resolve tag inputs (model / public id / name) to a de-duplicated list of
+     * primary keys, auto-creating tags by name where configured.
+     *
+     * @param  iterable<Tag|string>  $tags
+     * @return list<int>
+     */
+    private function resolveTagIds(iterable $tags): array
+    {
+        $ids = [];
+
+        foreach ($tags as $tag) {
+            $ids[] = $this->resolveTag($tag)->id;
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * A category is either a model or its opaque public id — it must pre-exist
+     * (a taxonomy op never invents a category). An unknown id fails loud.
+     */
+    private function resolveCategory(Category|string $category): Category
+    {
+        if ($category instanceof Category) {
+            return $category;
+        }
+
+        $found = Category::query()->where('public_id', trim($category))->first();
+
+        if ($found === null) {
+            throw new CategoryNotFoundException("Category [{$category}] was not found.", ['id' => $category]);
+        }
+
+        return $found;
+    }
+
+    /**
+     * A tag is a model, a public id, or a name. Public ids are opaque ULIDs, so
+     * a ULID-shaped string resolves an existing tag by public id (unknown →
+     * fail loud); any other string is a name, resolved to an existing tag or
+     * find-or-created when auto_create is on (else fail loud).
+     */
+    private function resolveTag(Tag|string $tag): Tag
+    {
+        if ($tag instanceof Tag) {
+            return $tag;
+        }
+
+        $value = trim($tag);
+
+        if (Str::isUlid($value)) {
+            $found = Tag::query()->where('public_id', $value)->first();
+
+            if ($found === null) {
+                throw new TagNotFoundException("Tag [{$value}] was not found.", ['id' => $value]);
+            }
+
+            return $found;
+        }
+
+        $existing = Tag::query()->where('name', $value)->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        if (! (bool) config('blog-manager.taxonomy.tags.auto_create', true)) {
+            throw new TagNotFoundException("Tag [{$value}] was not found.", ['name' => $value]);
+        }
+
+        return $this->createTag($value);
+    }
+
+    /**
+     * The subset of $ids currently attached as categories, read at the query
+     * level so a detach event reports only the rows it actually removes.
+     *
+     * @param  list<int>  $ids
+     * @return list<mixed>
+     */
+    private function attachedCategoryKeys(Post $post, array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $categories = $post->categories();
+
+        return array_values($categories->whereKey($ids)->pluck($categories->getRelated()->getQualifiedKeyName())->all());
+    }
+
+    /**
+     * The subset of $ids currently attached as tags (query-level, see
+     * {@see attachedCategoryKeys()}).
+     *
+     * @param  list<int>  $ids
+     * @return list<mixed>
+     */
+    private function attachedTagKeys(Post $post, array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $tags = $post->tags();
+
+        return array_values($tags->whereKey($ids)->pluck($tags->getRelated()->getQualifiedKeyName())->all());
+    }
+
+    /**
+     * Load categories by primary key for a delta-event payload (no query for an
+     * empty key set).
+     *
+     * @param  array<array-key, mixed>  $keys
+     * @return list<Category>
+     */
+    private function categoriesByKey(array $keys): array
+    {
+        if ($keys === []) {
+            return [];
+        }
+
+        return array_values(Category::query()->whereIn('id', $keys)->get()->all());
+    }
+
+    /**
+     * Load tags by primary key for a delta-event payload.
+     *
+     * @param  array<array-key, mixed>  $keys
+     * @return list<Tag>
+     */
+    private function tagsByKey(array $keys): array
+    {
+        if ($keys === []) {
+            return [];
+        }
+
+        return array_values(Tag::query()->whereIn('id', $keys)->get()->all());
     }
 
     /** Trim and require a non-empty term name (fail-loud). */

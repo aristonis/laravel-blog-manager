@@ -33,6 +33,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Taxonomy (behavior only — table names live in `tables` above)
+    |--------------------------------------------------------------------------
+    | Behaviour toggles for categories + tags. Attaching a tag by a name that
+    | does not yet exist auto-creates it (folksonomy ergonomics); set this to
+    | false to require every tag to pre-exist (an unknown tag name then throws
+    | TagNotFoundException). Categories always must pre-exist regardless.
+    */
+    'taxonomy' => [
+        'tags' => [
+            'auto_create' => true,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Media
     |--------------------------------------------------------------------------
     | The active storage adapter, the disk/path it writes to, how MIME types
