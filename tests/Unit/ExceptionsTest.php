@@ -8,14 +8,17 @@ use Aristonis\BlogManager\Exceptions\BlockKindMismatchException;
 use Aristonis\BlogManager\Exceptions\BlockPositionOutOfRangeException;
 use Aristonis\BlogManager\Exceptions\BlockTypeNotRegisteredException;
 use Aristonis\BlogManager\Exceptions\BlogManagerException;
+use Aristonis\BlogManager\Exceptions\CategoryNotFoundException;
 use Aristonis\BlogManager\Exceptions\GenericBlogManagerException;
 use Aristonis\BlogManager\Exceptions\InvalidBlockDataException;
 use Aristonis\BlogManager\Exceptions\InvalidPostDataException;
+use Aristonis\BlogManager\Exceptions\InvalidTaxonomyDataException;
 use Aristonis\BlogManager\Exceptions\MediaAdapterNotFoundException;
 use Aristonis\BlogManager\Exceptions\MediaInUseException;
 use Aristonis\BlogManager\Exceptions\MediaStorageFailedException;
 use Aristonis\BlogManager\Exceptions\MediaValidationException;
 use Aristonis\BlogManager\Exceptions\PostNotFoundException;
+use Aristonis\BlogManager\Exceptions\TagNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -31,6 +34,9 @@ dataset('exceptions', [
     'media in use' => [MediaInUseException::class, 3003, 'blog.media.in_use', 409],
     'media storage failed' => [MediaStorageFailedException::class, 3004, 'blog.media.storage_failed', 500],
     'authorization denied' => [AuthorizationDeniedException::class, 4001, 'blog.authorization.denied', 403],
+    'category not found' => [CategoryNotFoundException::class, 5001, 'blog.category.not_found', 404],
+    'tag not found' => [TagNotFoundException::class, 5002, 'blog.tag.not_found', 404],
+    'invalid taxonomy data' => [InvalidTaxonomyDataException::class, 5003, 'blog.taxonomy.invalid_data', 422],
     'generic' => [GenericBlogManagerException::class, 9001, 'blog.error', 500],
 ]);
 

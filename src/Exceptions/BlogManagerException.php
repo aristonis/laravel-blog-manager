@@ -18,7 +18,7 @@ use Throwable;
  * an HTTP status. There is deliberately no central enum; the two values live on
  * the exception itself.
  *
- * Number ranges: 1xxx posts · 2xxx blocks · 3xxx media · 4xxx authorization · 9xxx generic.
+ * Number ranges: 1xxx posts · 2xxx blocks · 3xxx media · 4xxx authorization · 5xxx taxonomy · 9xxx generic.
  *
  * The exception self-renders to a JSON envelope for API clients (see {@see render()}).
  * It never registers a global handler or otherwise touches the host application's
