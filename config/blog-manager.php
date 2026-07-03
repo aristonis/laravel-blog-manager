@@ -24,6 +24,7 @@ return [
         'posts' => 'blog_posts',
         'content_blocks' => 'blog_content_blocks',
         'media_items' => 'blog_media_items',
+        'post_revisions' => 'blog_post_revisions',
     ],
 
     /*

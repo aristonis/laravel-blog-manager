@@ -82,6 +82,18 @@ final class Post extends Model
     }
 
     /**
+     * The post's revision history, newest first (append-only; written by the
+     * RevisionService). Ordered by id so the sequence is deterministic even when
+     * two snapshots share a created_at timestamp.
+     *
+     * @return HasMany<PostRevision, $this>
+     */
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(PostRevision::class)->orderByDesc('id');
+    }
+
+    /**
      * The optional author, resolved from the host-configured model at call time.
      * The package never imports the host User model.
      *
