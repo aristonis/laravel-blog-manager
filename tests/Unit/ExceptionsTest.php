@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Aristonis\BlogManager\Contracts\HasErrorCode;
 use Aristonis\BlogManager\Exceptions\AuthorizationDeniedException;
 use Aristonis\BlogManager\Exceptions\BlockKindMismatchException;
+use Aristonis\BlogManager\Exceptions\BlockPositionConflictException;
 use Aristonis\BlogManager\Exceptions\BlockPositionOutOfRangeException;
 use Aristonis\BlogManager\Exceptions\BlockTypeNotRegisteredException;
 use Aristonis\BlogManager\Exceptions\BlogManagerException;
@@ -29,6 +30,7 @@ dataset('exceptions', [
     'invalid block data' => [InvalidBlockDataException::class, 2002, 'blog.block.invalid_data', 422],
     'block kind mismatch' => [BlockKindMismatchException::class, 2003, 'blog.block.kind_mismatch', 422],
     'block position out of range' => [BlockPositionOutOfRangeException::class, 2004, 'blog.block.position_out_of_range', 422],
+    'block position conflict' => [BlockPositionConflictException::class, 2005, 'blog.block.position_conflict', 409],
     'media validation' => [MediaValidationException::class, 3001, 'blog.media.validation_failed', 422],
     'media adapter not found' => [MediaAdapterNotFoundException::class, 3002, 'blog.media.adapter_not_found', 500],
     'media in use' => [MediaInUseException::class, 3003, 'blog.media.in_use', 409],
