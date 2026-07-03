@@ -67,6 +67,12 @@ final class BlogManager
      */
     public function render(Post $post): array
     {
+        // Collapse the media N+1: a no-op when the caller already eager-loaded
+        // (e.g. PostService::find), but batches blocks + mediaItem into two
+        // queries for any post reached another way (paginate, Post::find, a host
+        // query) instead of one lazy load per media block.
+        $post->loadMissing('blocks.mediaItem');
+
         return $post->blocks->map(function (ContentBlock $block): array {
             $url = $block->mediaItem !== null ? $this->media->url($block->mediaItem) : null;
 
