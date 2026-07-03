@@ -125,3 +125,41 @@ it('resolves a url for a media item', function () {
 
     expect(app(MediaManager::class)->url($media))->toBeString();
 });
+
+it('returns a usable url (never throws) for a ttl on a disk without signed-url support (L2)', function () {
+    // A bare local disk rejects temporaryUrl() with a raw RuntimeException.
+    // Requesting a signed URL on it must degrade to the plain url() (or null),
+    // never surfacing that exception to the host.
+    config()->set('filesystems.disks.l2_local', [
+        'driver' => 'local',
+        'root' => sys_get_temp_dir().'/blog-manager-l2',
+    ]);
+
+    $item = (new MediaItem)->forceFill([
+        'adapter' => 'filesystem',
+        'disk' => 'l2_local',
+        'path' => 'x.png',
+    ]);
+
+    // Pre-fix: temporaryUrl() throws a raw RuntimeException here (RED).
+    // Post-fix: degrades to the plain url() (a string), never throwing (GREEN).
+    $url = app(MediaManager::class)->url($item, 5);
+
+    expect($url === null || is_string($url))->toBeTrue();
+});
+
+it('strips control characters from the mime in the validation message (M8)', function () {
+    // The resolved mime can fall back to the attacker-controlled client mime.
+    // A CRLF-laden value must NOT reach the exception MESSAGE (log/CRLF injection),
+    // while the raw value is preserved in the exception context for forensics.
+    $injected = "application/pdf\n[CRITICAL] injected";
+
+    try {
+        app(MediaManager::class)->store(UploadedFile::fake()->create('x.bin', 1, $injected));
+        test()->fail('Expected MediaValidationException to be thrown.');
+    } catch (MediaValidationException $e) {
+        expect($e->getMessage())->not->toContain("\n")
+            ->and(preg_match('/[\p{C}]/u', $e->getMessage()))->toBe(0)
+            ->and($e->context()['mime'])->toBe($injected); // raw value retained
+    }
+});

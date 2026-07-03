@@ -138,8 +138,13 @@ final class MediaManager
         /** @var array<int, string> $allowed */
         $allowed = (array) config("blog-manager.media.allowed_mime.{$kind->value}", []);
         if (! in_array($mime, $allowed, true)) {
+            // $mime can fall back to the attacker-controlled client MIME, so
+            // interpolating it raw enables CRLF / log injection. Strip control
+            // chars for the MESSAGE only; the raw value stays in context (M8).
+            $safeMime = preg_replace('/[\p{C}]/u', '', $mime) ?? '';
+
             throw new MediaValidationException(
-                "MIME type [{$mime}] is not allowed for {$kind->value}.",
+                "MIME type [{$safeMime}] is not allowed for {$kind->value}.",
                 ['mime' => $mime, 'kind' => $kind->value],
             );
         }

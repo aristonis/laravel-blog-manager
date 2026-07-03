@@ -11,6 +11,7 @@ use Aristonis\BlogManager\Media\StoredMediaRef;
 use Aristonis\BlogManager\Models\MediaItem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 /**
  * Default storage adapter — persists binaries on a configurable Laravel
@@ -48,9 +49,23 @@ final class FilesystemAdapter implements MediaStorageAdapter
         /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
         $storage = Storage::disk($item->disk);
 
-        return $ttlMinutes !== null
-            ? $storage->temporaryUrl($item->path, now()->addMinutes($ttlMinutes))
-            : $storage->url($item->path);
+        if ($ttlMinutes !== null) {
+            try {
+                return $storage->temporaryUrl($item->path, now()->addMinutes($ttlMinutes));
+            } catch (Throwable) {
+                // Drivers without signed-URL support (the local/public disk) reject
+                // temporaryUrl() with a raw RuntimeException. Degrade to the plain
+                // URL so a host on the default disk still gets a usable link (L2).
+            }
+        }
+
+        try {
+            return $storage->url($item->path);
+        } catch (Throwable) {
+            // Some drivers expose no public URL either; return null rather than
+            // surface a raw driver exception to the caller (L2).
+            return null;
+        }
     }
 
     public function delete(MediaItem $item): void
