@@ -258,7 +258,7 @@ final class TaxonomyService
 
     /**
      * Replace the post's entire tag set with the given tags, detaching any not
-     * listed. See {@see Tag()} for accepted input.
+     * listed. See {@see self::tag()} for accepted input.
      *
      * @param  iterable<Tag|string>  $tags
      */
@@ -392,9 +392,11 @@ final class TaxonomyService
     /**
      * Paginate the posts directly attached through a term pivot: a single
      * indexed join, newest-first, honoring Post::scopePublished when requested.
-     * Ordering mirrors PostService::paginate — publish recency for the
-     * published-only branch (drafts carry a null published_at), creation recency
-     * otherwise. Columns are qualified so the pivot join stays unambiguous.
+     * Ordering: publish recency for the published-only branch (drafts carry a null
+     * published_at), creation recency otherwise. The published branch adds an id
+     * tiebreaker so posts sharing a published_at can't skip/duplicate across page
+     * boundaries (non-unique sort key). Columns are qualified so the pivot join
+     * stays unambiguous.
      *
      * @param  BelongsToMany<Post, Category>|BelongsToMany<Post, Tag>  $posts
      * @return LengthAwarePaginator<int, Post>
@@ -404,7 +406,9 @@ final class TaxonomyService
         $post = $posts->getRelated();
 
         $query = $onlyPublished
-            ? $posts->published()->orderByDesc($post->qualifyColumn('published_at'))
+            ? $posts->published()
+                ->orderByDesc($post->qualifyColumn('published_at'))
+                ->orderByDesc($post->getQualifiedKeyName())
             : $posts->orderByDesc($post->getQualifiedKeyName());
 
         // The pivot carries no payload (§2.2); drop the pivot intersection the

@@ -92,6 +92,24 @@ it('orders published posts newest-first by published_at, not by id', function ()
     expect($page->getCollection()->pluck('id')->all())->toBe([$c->id, $a->id, $b->id]);
 });
 
+it('breaks a published_at tie by id (newest-first) so pagination is stable', function () {
+    $news = reads()->createCategory('News');
+    $at = now()->subDay();
+    // three posts share an identical published_at; only the id tiebreaker makes the
+    // order deterministic across page boundaries (no skipped or duplicated row).
+    $p1 = mkPost('P1');
+    $p1->update(['status' => PostStatus::Published, 'published_at' => $at]);
+    $p2 = mkPost('P2');
+    $p2->update(['status' => PostStatus::Published, 'published_at' => $at]);
+    $p3 = mkPost('P3');
+    $p3->update(['status' => PostStatus::Published, 'published_at' => $at]);
+    $news->posts()->attach([$p1->id, $p2->id, $p3->id]);
+
+    $page = reads()->postsByCategory($news, onlyPublished: true);
+
+    expect($page->getCollection()->pluck('id')->all())->toBe([$p3->id, $p2->id, $p1->id]);
+});
+
 it('lists posts by tag, direct-membership only, newest-first, paginated', function () {
     $php = reads()->createTag('php');
     $p1 = mkPost();
