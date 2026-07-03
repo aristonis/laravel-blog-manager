@@ -10,6 +10,7 @@ use Aristonis\BlogManager\Exceptions\GenericBlogManagerException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -91,6 +92,34 @@ final class Post extends Model
     public function revisions(): HasMany
     {
         return $this->hasMany(PostRevision::class)->orderByDesc('id');
+    }
+
+    /**
+     * The post's categories (flat, curated terms), ordered by name. Many-to-many
+     * via the configurable pivot resolved at call time. Direct membership only.
+     *
+     * @return BelongsToMany<Category, $this>
+     */
+    public function categories(): BelongsToMany
+    {
+        $pivot = config('blog-manager.tables.post_category', 'blog_post_category');
+
+        return $this->belongsToMany(Category::class, is_string($pivot) ? $pivot : 'blog_post_category')
+            ->orderBy('name');
+    }
+
+    /**
+     * The post's tags (flat, free-form terms), ordered by name. Many-to-many via
+     * the configurable pivot resolved at call time. Direct membership only.
+     *
+     * @return BelongsToMany<Tag, $this>
+     */
+    public function tags(): BelongsToMany
+    {
+        $pivot = config('blog-manager.tables.post_tag', 'blog_post_tag');
+
+        return $this->belongsToMany(Tag::class, is_string($pivot) ? $pivot : 'blog_post_tag')
+            ->orderBy('name');
     }
 
     /**
