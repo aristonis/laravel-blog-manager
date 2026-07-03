@@ -13,9 +13,10 @@ return new class extends Migration
         Schema::create($this->table('categories', 'blog_categories'), function (Blueprint $table): void {
             $table->id();
             $table->ulid('public_id')->unique();
-            // A curated term with a table-unique name (uniqueness enforced by the
-            // service, §2.4) and a table-unique slug (the human-friendly address).
-            $table->string('name');
+            // A curated term with a table-unique name (§2.4) — enforced at the DB so
+            // the service check-then-insert can't race a duplicate — and a table-unique
+            // slug (the human-friendly address).
+            $table->string('name')->unique();
             $table->string('slug')->unique();
             $table->timestamps();
         });

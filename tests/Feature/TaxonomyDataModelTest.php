@@ -109,3 +109,19 @@ it('respects a configurable tags table name', function () {
 
     expect((new Tag)->getTable())->toBe('custom_tags');
 });
+
+it('rejects a duplicate category name at the database', function () {
+    Category::create(['name' => 'News', 'slug' => 'news']);
+
+    // curated set: the DB backstops the service-level uniqueness check
+    expect(fn () => Category::create(['name' => 'News', 'slug' => 'news-2']))
+        ->toThrow(QueryException::class);
+});
+
+it('ignores a mass-assigned public_id (opaque, package-generated)', function () {
+    $category = Category::create(['public_id' => 'attacker-supplied', 'name' => 'X', 'slug' => 'x']);
+    $tag = Tag::create(['public_id' => 'attacker-supplied-2', 'name' => 'Y', 'slug' => 'y']);
+
+    expect($category->fresh()->public_id)->toHaveLength(26)->not->toBe('attacker-supplied')
+        ->and($tag->fresh()->public_id)->toHaveLength(26)->not->toBe('attacker-supplied-2');
+});

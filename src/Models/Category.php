@@ -27,7 +27,7 @@ final class Category extends Model
     use HasPublicId;
 
     /** @var list<string> */
-    protected $fillable = ['public_id', 'name', 'slug'];
+    protected $fillable = ['name', 'slug'];
 
     public function getTable(): string
     {
