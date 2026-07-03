@@ -10,9 +10,9 @@ use Illuminate\Database\QueryException;
 
 it('rejects a duplicate (post_id, position) at the database level', function () {
     $post = Post::create(['title' => 'P', 'slug' => 'p']);
-    ContentBlock::create(['post_id' => $post->id, 'type' => 'paragraph', 'position' => 0, 'data' => ['content' => 'a']]);
+    ContentBlock::forceCreate(['post_id' => $post->id, 'type' => 'paragraph', 'position' => 0, 'data' => ['content' => 'a']]);
 
-    expect(fn () => ContentBlock::create(
+    expect(fn () => ContentBlock::forceCreate(
         ['post_id' => $post->id, 'type' => 'paragraph', 'position' => 0, 'data' => ['content' => 'b']]
     ))->toThrow(QueryException::class);
 });

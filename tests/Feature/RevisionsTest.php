@@ -13,7 +13,7 @@ it('persists a revision with a ULID public_id, an array-cast snapshot, and a pos
         'blocks' => [['type' => 'heading', 'position' => 0, 'source' => ['text' => 'Hi']]],
     ];
 
-    $revision = PostRevision::create([
+    $revision = PostRevision::forceCreate([
         'post_id' => $post->id,
         'snapshot' => $snapshot,
         'label' => 'published',
@@ -34,9 +34,9 @@ it('persists a revision with a ULID public_id, an array-cast snapshot, and a pos
 it('lists a post\'s revisions newest-first via the relation', function () {
     $post = Post::create(['title' => 'P', 'slug' => 'p']);
 
-    $first = PostRevision::create(['post_id' => $post->id, 'snapshot' => ['n' => 1]]);
-    $second = PostRevision::create(['post_id' => $post->id, 'snapshot' => ['n' => 2]]);
-    $third = PostRevision::create(['post_id' => $post->id, 'snapshot' => ['n' => 3]]);
+    $first = PostRevision::forceCreate(['post_id' => $post->id, 'snapshot' => ['n' => 1]]);
+    $second = PostRevision::forceCreate(['post_id' => $post->id, 'snapshot' => ['n' => 2]]);
+    $third = PostRevision::forceCreate(['post_id' => $post->id, 'snapshot' => ['n' => 3]]);
 
     expect($post->fresh()->revisions->pluck('id')->all())
         ->toBe([$third->id, $second->id, $first->id]);      // newest first

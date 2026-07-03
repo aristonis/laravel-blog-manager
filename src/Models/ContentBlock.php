@@ -25,8 +25,10 @@ final class ContentBlock extends Model
 {
     use HasPublicId;
 
+    // Structural fields (post_id/type/media_item_id) and public_id are set by
+    // BlockService/RevisionService via forceCreate — never mass-assigned (H3).
     /** @var list<string> */
-    protected $fillable = ['public_id', 'post_id', 'type', 'position', 'data', 'media_item_id'];
+    protected $fillable = ['position', 'data'];
 
     public function getTable(): string
     {

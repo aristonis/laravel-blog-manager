@@ -29,9 +29,12 @@ final class MediaItem extends Model
 {
     use HasPublicId;
 
+    // Only user-meaningful descriptors are mass-assignable. Storage-routing
+    // internals (adapter/disk/path/meta) and public_id are set by MediaManager
+    // via forceFill — never from host-supplied input (H3).
     /** @var list<string> */
     protected $fillable = [
-        'public_id', 'kind', 'mime', 'size', 'original_filename', 'adapter', 'disk', 'path', 'meta',
+        'kind', 'mime', 'size', 'original_filename',
     ];
 
     public function getTable(): string

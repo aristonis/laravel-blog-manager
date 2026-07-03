@@ -94,7 +94,7 @@ it('declares the required media kind and renders a media payload', function () {
 });
 
 it('renders a block via its type, wrapping block meta', function () {
-    $block = new ContentBlock(['type' => 'paragraph', 'position' => 3, 'data' => ['format' => 'plain', 'content' => 'hi']]);
+    $block = (new ContentBlock)->forceFill(['type' => 'paragraph', 'position' => 3, 'data' => ['format' => 'plain', 'content' => 'hi']]);
     $block->public_id = '01XYZ';
 
     $rendered = app(BlockRenderer::class)->render($block);
@@ -107,7 +107,7 @@ it('renders a block via its type, wrapping block meta', function () {
 });
 
 it('exposes the raw source alongside the rendered payload', function () {
-    $block = new ContentBlock(['type' => 'paragraph', 'position' => 0, 'data' => ['format' => 'markdown', 'content' => '**hi**']]);
+    $block = (new ContentBlock)->forceFill(['type' => 'paragraph', 'position' => 0, 'data' => ['format' => 'markdown', 'content' => '**hi**']]);
     $block->public_id = '01ABC';
 
     $rendered = app(BlockRenderer::class)->render($block);

@@ -61,7 +61,7 @@ final class RevisionService
      */
     private function record(Post $post, ?string $label, mixed $createdBy): PostRevision
     {
-        $revision = PostRevision::create([
+        $revision = PostRevision::forceCreate([
             'post_id' => $post->id,
             'snapshot' => $this->serialize($post),
             'label' => $label,
@@ -323,7 +323,7 @@ final class RevisionService
         $post->blocks()->delete();
 
         foreach ($blocks as $block) {
-            ContentBlock::create([
+            ContentBlock::forceCreate([
                 'post_id' => $post->id,
                 'type' => $block['type'],
                 'position' => $block['position'],

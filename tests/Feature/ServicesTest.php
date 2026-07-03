@@ -93,7 +93,7 @@ it('updates a block payload and dispatches BlockUpdated after commit', function 
 
 it('rejects a media block whose media kind does not match', function () {
     $post = posts()->create(['title' => 'P']);
-    $video = MediaItem::create([
+    $video = MediaItem::forceCreate([
         'kind' => MediaKind::Video, 'mime' => 'video/mp4', 'size' => 1,
         'original_filename' => 'v.mp4', 'adapter' => 'filesystem',
     ]);

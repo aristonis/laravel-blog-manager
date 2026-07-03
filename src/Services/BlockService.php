@@ -52,7 +52,7 @@ final class BlockService
         $normalized = $blockType->validate($data);
 
         return DB::transaction(function () use ($post, $type, $normalized, $media): ContentBlock {
-            $block = ContentBlock::create([
+            $block = ContentBlock::forceCreate([
                 'post_id' => $post->id,
                 'type' => $type,
                 'position' => (int) $post->blocks()->count(),

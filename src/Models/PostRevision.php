@@ -27,8 +27,10 @@ final class PostRevision extends Model
 {
     use HasPublicId;
 
+    // post_id/snapshot and public_id are set by RevisionService via forceCreate
+    // — never mass-assigned from host input (H3).
     /** @var list<string> */
-    protected $fillable = ['public_id', 'post_id', 'snapshot', 'label', 'created_by'];
+    protected $fillable = ['label', 'created_by'];
 
     public function getTable(): string
     {

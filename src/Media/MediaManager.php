@@ -44,7 +44,7 @@ final class MediaManager
         $ref = $adapter->store($file, $kind);
 
         try {
-            $media = MediaItem::create([
+            $media = MediaItem::forceCreate([
                 'kind' => $kind,
                 'mime' => $mime,
                 'size' => (int) ($file->getSize() ?: 0),
@@ -116,7 +116,7 @@ final class MediaManager
     private function compensate(MediaStorageAdapter $adapter, StoredMediaRef $ref): void
     {
         try {
-            $adapter->delete(new MediaItem([
+            $adapter->delete((new MediaItem)->forceFill([
                 'adapter' => $ref->adapter,
                 'disk' => $ref->disk,
                 'path' => $ref->path,

@@ -33,8 +33,9 @@ final class Post extends Model
 {
     use HasPublicId;
 
+    // public_id is package-generated (HasPublicId) — never mass-assigned (H3).
     /** @var list<string> */
-    protected $fillable = ['public_id', 'title', 'slug', 'author_id', 'status', 'published_at'];
+    protected $fillable = ['title', 'slug', 'author_id', 'status', 'published_at'];
 
     public function getTable(): string
     {

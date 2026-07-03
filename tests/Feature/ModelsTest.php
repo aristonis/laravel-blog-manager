@@ -26,13 +26,13 @@ it('respects configurable table names', function () {
 
 it('orders blocks by position and links post/media relations', function () {
     $post = Post::create(['title' => 'P', 'slug' => 'p']);
-    $media = MediaItem::create([
+    $media = MediaItem::forceCreate([
         'kind' => MediaKind::Image, 'mime' => 'image/png', 'size' => 123,
         'original_filename' => 'a.png', 'adapter' => 'filesystem', 'disk' => 'public', 'path' => 'x/a.png',
     ]);
 
-    ContentBlock::create(['post_id' => $post->id, 'type' => 'paragraph', 'position' => 1, 'data' => ['format' => 'plain', 'content' => 'two']]);
-    ContentBlock::create(['post_id' => $post->id, 'type' => 'image', 'position' => 0, 'media_item_id' => $media->id, 'data' => ['alt' => 'a']]);
+    ContentBlock::forceCreate(['post_id' => $post->id, 'type' => 'paragraph', 'position' => 1, 'data' => ['format' => 'plain', 'content' => 'two']]);
+    ContentBlock::forceCreate(['post_id' => $post->id, 'type' => 'image', 'position' => 0, 'media_item_id' => $media->id, 'data' => ['alt' => 'a']]);
 
     $ordered = $post->fresh()->blocks;
 
@@ -45,7 +45,7 @@ it('orders blocks by position and links post/media relations', function () {
 });
 
 it('casts media kind to the enum and meta to an array', function () {
-    $media = MediaItem::create([
+    $media = MediaItem::forceCreate([
         'kind' => MediaKind::Video, 'mime' => 'video/mp4', 'size' => 9,
         'original_filename' => 'v.mp4', 'adapter' => 'filesystem', 'disk' => 'public', 'path' => 'v.mp4', 'meta' => ['w' => 1],
     ])->fresh();

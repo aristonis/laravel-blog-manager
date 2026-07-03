@@ -99,12 +99,12 @@ it('routes storage through a custom adapter and compensates on record failure', 
 });
 
 it('refuses to delete media still referenced by a block', function () {
-    $media = MediaItem::create([
+    $media = MediaItem::forceCreate([
         'kind' => MediaKind::Image, 'mime' => 'image/png', 'size' => 10,
         'original_filename' => 'a.png', 'adapter' => 'filesystem', 'disk' => 'public', 'path' => 'blog-media/a.png',
     ]);
     $post = Post::create(['title' => 'p', 'slug' => 'p']);
-    ContentBlock::create(['post_id' => $post->id, 'type' => 'image', 'position' => 0, 'media_item_id' => $media->id]);
+    ContentBlock::forceCreate(['post_id' => $post->id, 'type' => 'image', 'position' => 0, 'media_item_id' => $media->id]);
 
     expect(fn () => app(MediaManager::class)->delete($media))->toThrow(MediaInUseException::class)
         ->and(MediaItem::find($media->id))->not->toBeNull();
