@@ -10,6 +10,7 @@ changing code — they encode how to use and extend the package correctly and fa
    - `skills/add-block-type.md` — register a new block type without editing the core (SG-4).
    - `skills/add-media-adapter.md` — register a media storage adapter (SG-5).
    - `skills/add-authorizer.md` — register an authorization driver (SG-6).
+   - `skills/manage-revisions.md` — capture, list, and non-destructively restore post revisions (v0.3).
    - `skills/run-tests.md` — Pest, Pint, Larastan commands (SG-9 finalized).
 
 ## Orientation

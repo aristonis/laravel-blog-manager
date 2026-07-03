@@ -14,6 +14,7 @@ php artisan vendor:publish --tag=blog-manager-config
 | `tables.posts` | `blog_posts` | Posts table name. |
 | `tables.content_blocks` | `blog_content_blocks` | Blocks table name. |
 | `tables.media_items` | `blog_media_items` | Media table name. |
+| `tables.post_revisions` | `blog_post_revisions` | Revisions table name. |
 | `media.adapter` | `filesystem` | Active storage driver key (see [../.ai/skills/add-media-adapter.md](../.ai/skills/add-media-adapter.md)). |
 | `media.disk` | `public` | Filesystem disk the default adapter writes to. |
 | `media.path` | `blog-media` | Directory within the disk. |
@@ -24,6 +25,9 @@ php artisan vendor:publish --tag=blog-manager-config
 | `media.max_size.{image,video,file}` | 5 / 100 / 20 MB | Per-kind size caps (bytes). |
 | `authorization.driver` | `none` | `none` (allow-all) · `gate` · a custom driver key. |
 | `authorization.enforce_in_services` | `false` | Enforce abilities inside the services on every mutation. Default `false` — the host authorizes in its own transport layer. |
+| `revisions.snapshot_on_publish` | `true` | Auto-capture a revision whenever a post is published. |
+| `revisions.keep` | `null` | Revisions kept per post; `null` = unlimited, an integer prunes the oldest beyond N. |
+| `revisions.on_missing_media` | `strict` | Restore with deleted media: `strict` throws with the missing list; `lenient` drops those blocks and restores the rest. |
 
 ## Notes
 - **Secure file default:** `media.allowed_mime.file` ships empty; file blocks stay unusable until you list MIME types.

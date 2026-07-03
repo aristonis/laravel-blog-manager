@@ -4,11 +4,31 @@ All notable changes to `aristonis/laravel-blog-manager` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - unreleased
 
-Repositioned as a **core-only domain library**: the package ships domain services
-and a facade — no HTTP layer. Each host owns its own transport **and** API contract
-(contracts and business rules are per-project). All domain behaviour is unchanged.
+Adds a **post revision history** on top of the core-only repositioning. The package
+ships domain services and a facade — no HTTP layer; each host owns its own transport
+**and** API contract.
+
+### Added — Revisions
+- **Append-only revision history.** A revision is a full immutable JSON snapshot of a
+  post — its attributes plus the whole ordered block tree (media referenced by id, not
+  copied). New `PostRevision` model + `blog_post_revisions` table, `Post::revisions()`.
+- **`RevisionService`** (`BlogManager::revisions()`): `snapshot()`, `for()`, `get()`,
+  `restore()`.
+- **Auto-capture on publish** — publishing records a `published` revision (toggle
+  `revisions.snapshot_on_publish`); manual `snapshot()` is always available.
+- **Non-destructive restore.** Rebuilds attributes + block tree from a snapshot, keeps
+  the pre-restore state (append-only), and is **content-only by default** (never silently
+  re-publishes) unless `restorePublishState: true`.
+- **Media-gap repair on restore.** A snapshot referencing since-deleted media throws
+  `RevisionMediaMissingException` with a per-gap list; re-upload and pass a `mediaRemap`
+  to complete and record a fresh revision. `revisions.on_missing_media=lenient` drops the
+  gap instead. Media deletion is unchanged: refused while a live block references it,
+  allowed when only history does.
+- **Events** `PostRevisionCreated` / `PostRestored` (after-commit).
+- **Config** `revisions.{snapshot_on_publish, keep, on_missing_media}`; retention prunes
+  the oldest beyond `keep` per post.
 
 ### Removed — BREAKING
 - **The optional HTTP API is gone (D25).** Deleted `src/Http/**` (Post/Block/Media

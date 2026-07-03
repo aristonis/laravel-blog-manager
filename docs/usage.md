@@ -51,10 +51,46 @@ $blocks = BlogManager::render(BlogManager::posts()->find('hello-world'));
 > **`source` is raw, unsanitized author input** — for client-side re-rendering/re-theming. Sanitize it before
 > injecting as HTML. `payload` is already sanitized (safe to render directly).
 
+## Revisions (history & restore)
+A post keeps an **append-only history of immutable snapshots** — its attributes plus the whole ordered block
+tree (media is referenced by id, never copied). Capture is explicit and also automatic on publish; restore is
+non-destructive.
+
+```php
+// Capture a snapshot (optionally labelled + an author id for attribution)
+BlogManager::revisions()->snapshot($post, 'before big edit', $userId);
+
+// Publishing auto-captures a 'published' revision (toggle: revisions.snapshot_on_publish)
+BlogManager::posts()->publish($post);
+
+// List (newest first) and fetch one
+$history = BlogManager::revisions()->for($post);          // or ->for($post, perPage: 20)
+$revision = BlogManager::revisions()->get($post, $revisionPublicId);
+
+// Restore — content only by default (does NOT change publish state); append-only
+BlogManager::revisions()->restore($post, $revision);
+BlogManager::revisions()->restore($post, $revision, restorePublishState: true);
+```
+
+**Missing media on restore.** If a snapshot references media that was since deleted, `restore()` throws
+`RevisionMediaMissingException` (default `revisions.on_missing_media = strict`), whose context carries a
+`missing` list (block position, type, original filename, old media public id). Re-upload the files, then retry
+with a remap — the restore completes and records a fresh revision:
+
+```php
+$new = BlogManager::media()->store($request->file('replacement'));
+BlogManager::revisions()->restore($post, $revision, mediaRemap: [
+    $oldMediaPublicId => $new->public_id,
+]);
+```
+
+Set `revisions.on_missing_media = lenient` to instead drop the missing-media block and restore the rest.
+Deleting media is unchanged: refused while a **live** block references it, allowed when only history does.
+
 ## Events
 Each mutation dispatches an after-commit event you can listen for: `PostCreated/Updated/Deleted`,
-`PostPublished/Unpublished`, `BlockAppended/Updated/Removed`, `BlocksReordered`, `MediaStored/Deleted`.
-The package ships no listeners. See [events.md](events.md).
+`PostPublished/Unpublished`, `BlockAppended/Updated/Removed`, `BlocksReordered`, `MediaStored/Deleted`,
+`PostRevisionCreated`, `PostRestored`. The package ships no listeners. See [events.md](events.md).
 
 ## Building your own transport
 The package ships no controllers or routes — you wire your own. Call the services from a web controller, a

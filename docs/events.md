@@ -17,6 +17,8 @@ listeners**; these exist for your app to hook into.
 | `Events\BlocksReordered` | `Post $post` | A post's blocks are reordered |
 | `Events\MediaStored` | `MediaItem $media` | A media item is stored |
 | `Events\MediaDeleted` | `MediaItem $media` | A media item is deleted |
+| `Events\PostRevisionCreated` | `PostRevision $revision` | A revision is captured (manual snapshot or auto on publish) |
+| `Events\PostRestored` | `Post $post`, `PostRevision $revision` | A post is restored from a revision |
 
 ## Listening
 ```php
