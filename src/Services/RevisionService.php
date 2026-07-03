@@ -115,7 +115,11 @@ final class RevisionService
      */
     public function restore(Post $post, PostRevision $revision, bool $restorePublishState = false, array $mediaRemap = []): Post
     {
+        // Restore rewrites both post attributes and the block tree, so it requires
+        // both abilities — a caller with POST_UPDATE but not BLOCK_MANAGE must not
+        // rebuild blocks through this path.
         $this->guard->ensure(Abilities::POST_UPDATE, $post);
+        $this->guard->ensure(Abilities::BLOCK_MANAGE, $post);
 
         if ($revision->post_id !== $post->id) {
             throw new RevisionNotFoundException(
@@ -193,6 +197,7 @@ final class RevisionService
      */
     private function resolveBlocks(array $blocks, array $mediaRemap): array
     {
+        $mediaByPublicId = $this->fetchMedia($blocks, $mediaRemap);
         $resolved = [];
         $missing = [];
         $repaired = false;
@@ -213,9 +218,7 @@ final class RevisionService
                     $repaired = true;
                 }
 
-                $item = is_string($lookupPublicId)
-                    ? MediaItem::query()->where('public_id', $lookupPublicId)->first()
-                    : null;
+                $item = is_string($lookupPublicId) ? ($mediaByPublicId[$lookupPublicId] ?? null) : null;
 
                 if ($item === null) {
                     $missing[] = [
@@ -243,6 +246,38 @@ final class RevisionService
         return ['blocks' => $resolved, 'missing' => $missing, 'repaired' => $repaired || $missing !== []];
     }
 
+    /**
+     * Resolve every media reference in the snapshot (after remap) in a single
+     * query, keyed by public id — avoids an N+1 across media blocks.
+     *
+     * @param  array<int, mixed>  $blocks
+     * @param  array<string, string>  $mediaRemap
+     * @return array<string, MediaItem>
+     */
+    private function fetchMedia(array $blocks, array $mediaRemap): array
+    {
+        $publicIds = [];
+
+        foreach ($blocks as $block) {
+            $media = ((array) $block)['media'] ?? null;
+            $publicId = is_array($media) ? ($media['public_id'] ?? null) : null;
+
+            if (is_string($publicId)) {
+                $publicIds[] = array_key_exists($publicId, $mediaRemap) ? $mediaRemap[$publicId] : $publicId;
+            }
+        }
+
+        if ($publicIds === []) {
+            return [];
+        }
+
+        return MediaItem::query()
+            ->whereIn('public_id', array_values(array_unique($publicIds)))
+            ->get()
+            ->keyBy('public_id')
+            ->all();
+    }
+
     private function assertKindMatches(string $type, MediaItem $item): void
     {
         $requiredKind = $this->registry->get($type)->requiresMediaKind();
@@ -265,7 +300,10 @@ final class RevisionService
         }
 
         $post->slug = $this->uniqueSlug(Str::slug((string) ($attributes['slug'] ?? $post->slug)), $post->id);
-        $post->author_id = $attributes['author_id'] ?? null;
+
+        // author_id is intentionally NOT restored: it is ownership-sensitive, and a
+        // restore should not silently reassign a post's author. A host that wants to
+        // revert the author does it explicitly via PostService::update().
 
         if ($restorePublishState) {
             $post->status = PostStatus::from((string) ($attributes['status'] ?? PostStatus::Draft->value));
@@ -291,6 +329,10 @@ final class RevisionService
                 'media_item_id' => $block['media_item_id'] ?? null,
             ]);
         }
+
+        // Drop the now-stale cached relation so a later serialize()/refresh sees
+        // the rebuilt blocks, not the pre-restore collection loaded earlier.
+        $post->unsetRelation('blocks');
     }
 
     private function prune(Post $post): void

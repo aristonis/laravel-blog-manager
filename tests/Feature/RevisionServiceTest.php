@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Aristonis\BlogManager\Enums\PostStatus;
+use Aristonis\BlogManager\Events\PostRestored;
 use Aristonis\BlogManager\Events\PostRevisionCreated;
 use Aristonis\BlogManager\Exceptions\RevisionMediaMissingException;
 use Aristonis\BlogManager\Exceptions\RevisionNotFoundException;
@@ -172,6 +173,34 @@ it('handles missing media on restore: strict throws, lenient drops, remap repair
     $fresh = $post->fresh();
     expect($fresh->blocks->pluck('type')->all())->toBe(['heading', 'paragraph', 'image'])
         ->and($fresh->blocks->firstWhere('type', 'image')->media_item_id)->toBe($replacement->id);
+});
+
+it('records the repaired (not the stale pre-restore) block tree in the repaired revision', function () {
+    $post = seededPost();
+    $revision = revs()->snapshot($post);
+    $media = MediaItem::query()->first();
+    $post->blocks()->where('type', 'image')->update(['media_item_id' => null]);
+    app(MediaManager::class)->delete($media->fresh());
+
+    config()->set('blog-manager.revisions.on_missing_media', 'lenient');
+    revs()->restore($post->fresh(), $revision->fresh());
+
+    expect($post->fresh()->blocks->pluck('type')->all())->toBe(['heading', 'paragraph']); // live DB correct
+
+    // the repaired revision must reflect the rebuilt tree (2 blocks), not the stale pre-restore 3
+    $repaired = $post->fresh()->revisions->firstWhere('label', 'restored (repaired)');
+    expect($repaired->snapshot['blocks'])->toHaveCount(2);
+});
+
+it('dispatches PostRestored after commit on restore', function () {
+    Event::fake([PostRestored::class]);
+    $post = seededPost();
+    $revision = revs()->snapshot($post);
+    app(PostService::class)->update($post, ['title' => 'Changed']);
+
+    revs()->restore($post->fresh(), $revision->fresh());
+
+    Event::assertDispatched(PostRestored::class);
 });
 
 it('prunes to revisions.keep, keeping the newest', function () {
