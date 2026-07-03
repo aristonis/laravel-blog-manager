@@ -13,7 +13,15 @@ use Aristonis\BlogManager\Models\Category;
 use Aristonis\BlogManager\Models\Post;
 use Aristonis\BlogManager\Models\Tag;
 use Aristonis\BlogManager\Services\TaxonomyService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Str;
+
+// Flush Eloquent model event listeners after each test so a `creating` squatter
+// listener registered in one test cannot bleed into the next (mirrors
+// BlockConcurrencyTest). Models re-boot per test (DatabaseServiceProvider::boot
+// clears booted models), so HasPublicId re-registers cleanly afterwards.
+afterEach(fn () => Category::flushEventListeners());
 
 function taxonomy(): TaxonomyService
 {
@@ -84,6 +92,38 @@ it('allows a duplicate tag name, suffixing only the slug', function () {
 
 it('rejects an empty or whitespace category name', function () {
     expect(fn () => taxonomy()->createCategory('   '))
+        ->toThrow(InvalidTaxonomyDataException::class);
+});
+
+it('translates a lost category-name race into a domain error (L3)', function () {
+    // The service pre-check (requireUniqueCategoryName) passes — no duplicate yet —
+    // then a concurrent writer seats a same-name row just before our INSERT.
+    // Deterministically simulated via a `creating` listener that inserts the
+    // squatter with the raw query builder (which does NOT re-fire the model
+    // event, so no recursion). The DB unique(name) backstop must surface as
+    // InvalidTaxonomyDataException, not a raw Illuminate\Database\QueryException.
+    $table = config('blog-manager.tables.categories', 'blog_categories');
+    $injectedOnce = false;
+
+    Category::creating(function (Category $category) use (&$injectedOnce, $table): void {
+        if ($injectedOnce) {
+            return;
+        }
+        $injectedOnce = true;
+
+        DB::table($table)->insert([
+            'public_id' => (string) Str::ulid(),
+            'name' => $category->name,           // ← same name our INSERT will use
+            'slug' => 'squatter-'.Str::ulid(),   // slug is independently unique
+            'created_at' => now()->toDateTimeString(),
+            'updated_at' => now()->toDateTimeString(),
+        ]);
+    });
+
+    // Pre-fix: raw QueryException escapes (wrong type) → RED.
+    // Post-fix: UniqueConstraintViolationException is caught and re-thrown as
+    // the domain error → GREEN.
+    expect(fn () => taxonomy()->createCategory('News'))
         ->toThrow(InvalidTaxonomyDataException::class);
 });
 

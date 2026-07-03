@@ -25,6 +25,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -54,16 +55,30 @@ final class TaxonomyService
         $this->requireUniqueCategoryName($name);
         $base = $this->baseSlug($slug, $name);
 
-        return DB::transaction(function () use ($name, $base): Category {
-            $category = Category::create([
-                'name' => $name,
-                'slug' => $this->slugs->unique(Category::class, $base, fallback: 'category'),
-            ]);
+        try {
+            return DB::transaction(function () use ($name, $base): Category {
+                $category = Category::create([
+                    'name' => $name,
+                    'slug' => $this->slugs->unique(Category::class, $base, fallback: 'category'),
+                ]);
 
-            event(new CategoryCreated($category));
+                event(new CategoryCreated($category));
 
-            return $category;
-        });
+                return $category;
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            // Concurrency backstop: the pre-check (requireUniqueCategoryName)
+            // passed, but a concurrent writer committed the same name before our
+            // INSERT and the DB unique(name) constraint fired. Translate the raw
+            // QueryException subclass into the same domain error the pre-check
+            // raises so a lost race never surfaces as a bare QueryException (L3).
+            // Mirrors BlockService::append's unique-violation translation.
+            throw new InvalidTaxonomyDataException(
+                "A category named [{$name}] already exists.",
+                ['field' => 'name', 'name' => $name],
+                $e,
+            );
+        }
     }
 
     /**
