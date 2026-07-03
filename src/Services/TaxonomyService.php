@@ -21,7 +21,10 @@ use Aristonis\BlogManager\Models\Category;
 use Aristonis\BlogManager\Models\Post;
 use Aristonis\BlogManager\Models\Tag;
 use Aristonis\BlogManager\Support\SlugGenerator;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -258,6 +261,134 @@ final class TaxonomyService
 
             event(new PostTagged($post, [], $this->tagsByKey($removed)));
         });
+    }
+
+    // ---- reads: direct membership only (§2.6, FR-55/56/57) -----------------
+    // All reads are UNGUARDED — no authz on reads (§2.6), consistent with
+    // PostService::find / paginate.
+
+    /**
+     * The posts directly filed under a category (direct membership only — no
+     * descendant rollup), newest-first, paginated. Honors the published-
+     * visibility filter (Post::scopePublished) when $onlyPublished. A single
+     * indexed pivot join (NFR-24).
+     *
+     * @return LengthAwarePaginator<int, Post>
+     */
+    public function postsByCategory(Category $category, int $perPage = 15, bool $onlyPublished = false): LengthAwarePaginator
+    {
+        return $this->paginateAttachedPosts($category->posts(), $perPage, $onlyPublished);
+    }
+
+    /**
+     * The posts directly tagged with a tag (direct membership only), newest-
+     * first, paginated. See {@see postsByCategory()}.
+     *
+     * @return LengthAwarePaginator<int, Post>
+     */
+    public function postsByTag(Tag $tag, int $perPage = 15, bool $onlyPublished = false): LengthAwarePaginator
+    {
+        return $this->paginateAttachedPosts($tag->posts(), $perPage, $onlyPublished);
+    }
+
+    /**
+     * All categories, flat and ordered by name for stable output.
+     *
+     * @return Collection<int, Category>
+     */
+    public function categories(): Collection
+    {
+        return Category::query()->orderBy('name')->get();
+    }
+
+    /**
+     * All tags, flat and ordered by name for stable output.
+     *
+     * @return Collection<int, Tag>
+     */
+    public function tags(): Collection
+    {
+        return Tag::query()->orderBy('name')->get();
+    }
+
+    /**
+     * A post's terms on both axes, eager-loaded to avoid N+1.
+     *
+     * @return array{categories: Collection<int, Category>, tags: Collection<int, Tag>}
+     */
+    public function for(Post $post): array
+    {
+        $post->loadMissing(['categories', 'tags']);
+
+        return [
+            'categories' => $post->categories,
+            'tags' => $post->tags,
+        ];
+    }
+
+    /**
+     * Resolve one category by its public id OR slug (grouped clause so neither
+     * arm leaks across the other — mirrors PostService::find). An unknown term
+     * throws CategoryNotFoundException.
+     */
+    public function getCategory(string $idOrSlug): Category
+    {
+        $category = Category::query()
+            ->where(fn (Builder $query) => $query
+                ->where('public_id', $idOrSlug)
+                ->orWhere('slug', $idOrSlug))
+            ->first();
+
+        if ($category === null) {
+            throw new CategoryNotFoundException("Category [{$idOrSlug}] was not found.", ['id' => $idOrSlug]);
+        }
+
+        return $category;
+    }
+
+    /**
+     * Resolve one tag by its public id OR slug (grouped clause). An unknown term
+     * throws TagNotFoundException.
+     */
+    public function getTag(string $idOrSlug): Tag
+    {
+        $tag = Tag::query()
+            ->where(fn (Builder $query) => $query
+                ->where('public_id', $idOrSlug)
+                ->orWhere('slug', $idOrSlug))
+            ->first();
+
+        if ($tag === null) {
+            throw new TagNotFoundException("Tag [{$idOrSlug}] was not found.", ['id' => $idOrSlug]);
+        }
+
+        return $tag;
+    }
+
+    /**
+     * Paginate the posts directly attached through a term pivot: a single
+     * indexed join, newest-first, honoring Post::scopePublished when requested.
+     * Ordering mirrors PostService::paginate — publish recency for the
+     * published-only branch (drafts carry a null published_at), creation recency
+     * otherwise. Columns are qualified so the pivot join stays unambiguous.
+     *
+     * @param  BelongsToMany<Post, Category>|BelongsToMany<Post, Tag>  $posts
+     * @return LengthAwarePaginator<int, Post>
+     */
+    private function paginateAttachedPosts(BelongsToMany $posts, int $perPage, bool $onlyPublished): LengthAwarePaginator
+    {
+        $post = $posts->getRelated();
+
+        $query = $onlyPublished
+            ? $posts->published()->orderByDesc($post->qualifyColumn('published_at'))
+            : $posts->orderByDesc($post->getQualifiedKeyName());
+
+        // The pivot carries no payload (§2.2); drop the pivot intersection the
+        // relation paginator infers so callers see plain Post models.
+        /** @var LengthAwarePaginator<int, Post> $page */
+        $page = $query->paginate($perPage);
+
+        return $page;
     }
 
     /**
