@@ -233,6 +233,12 @@ final class TaxonomyService
             $removed = $this->attachedCategoryKeys($post, $ids);
             $post->categories()->detach($ids);
 
+            // A detach that removes nothing is a no-op (M2): stay silent so a host
+            // listener never fires on a non-change.
+            if ($removed === []) {
+                return;
+            }
+
             event(new PostCategorized($post, [], $this->categoriesByKey($removed)));
         });
     }
@@ -282,6 +288,12 @@ final class TaxonomyService
             $ids = $this->resolveTagIds($tags);
             $removed = $this->attachedTagKeys($post, $ids);
             $post->tags()->detach($ids);
+
+            // A detach that removes nothing is a no-op (M2): stay silent so a host
+            // listener never fires on a non-change.
+            if ($removed === []) {
+                return;
+            }
 
             event(new PostTagged($post, [], $this->tagsByKey($removed)));
         });
@@ -433,6 +445,13 @@ final class TaxonomyService
                 ? $post->categories()->sync($ids)
                 : $post->categories()->syncWithoutDetaching($ids);
 
+            // Dispatch only on a real delta (M2): an all-empty sync result (nothing
+            // attached, nothing detached) must stay silent so a host listener
+            // (webhooks, cache invalidation) never fires on a phantom no-op.
+            if ($changes['attached'] === [] && $changes['detached'] === []) {
+                return;
+            }
+
             event(new PostCategorized(
                 $post,
                 $this->categoriesByKey($changes['attached']),
@@ -454,6 +473,12 @@ final class TaxonomyService
             $changes = $replace
                 ? $post->tags()->sync($ids)
                 : $post->tags()->syncWithoutDetaching($ids);
+
+            // Dispatch only on a real delta (M2): an all-empty sync result must
+            // stay silent so a host listener never fires on a phantom no-op.
+            if ($changes['attached'] === [] && $changes['detached'] === []) {
+                return;
+            }
 
             event(new PostTagged(
                 $post,

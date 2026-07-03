@@ -93,6 +93,30 @@ it('detaches categories, reporting only the rows it actually removed', function 
     );
 });
 
+it('does not re-dispatch PostCategorized on a no-op re-attach (M2)', function () {
+    $post = taxoPost();
+    $a = taxo()->createCategory('Alpha');
+
+    Event::fake([PostCategorized::class]);
+    taxo()->categorize($post, [$a]); // real attach -> one event
+    taxo()->categorize($post, [$a]); // already attached -> no-op, no phantom event
+
+    // The event carries a delta a host listener acts on; a no-op sync (added and
+    // removed both empty) must stay silent so webhooks/cache invalidation don't
+    // fire on a non-change.
+    Event::assertDispatchedTimes(PostCategorized::class, 1);
+});
+
+it('does not dispatch PostCategorized when uncategorize removes nothing (M2)', function () {
+    $post = taxoPost();
+    $gamma = taxo()->createCategory('Gamma'); // never attached
+
+    Event::fake([PostCategorized::class]);
+    taxo()->uncategorize($post, [$gamma]); // detaches nothing -> no event
+
+    Event::assertNotDispatched(PostCategorized::class);
+});
+
 // ---- tag / syncTags / untag ---------------------------------------------
 
 it('auto-creates tags by name and attaches them when auto_create is on', function () {
@@ -173,6 +197,27 @@ it('detaches tags, reporting the removed set', function () {
         PostTagged::class,
         fn (PostTagged $e) => ids($e->removed) === [$php->id] && $e->added === [],
     );
+});
+
+it('does not re-dispatch PostTagged on a no-op re-attach (M2)', function () {
+    $post = taxoPost();
+    $php = taxo()->createTag('php');
+
+    Event::fake([PostTagged::class]);
+    taxo()->tag($post, [$php]); // real attach -> one event
+    taxo()->tag($post, [$php]); // already attached -> no-op, no phantom event
+
+    Event::assertDispatchedTimes(PostTagged::class, 1);
+});
+
+it('does not dispatch PostTagged when untag removes nothing (M2)', function () {
+    $post = taxoPost();
+    $php = taxo()->createTag('php'); // never attached
+
+    Event::fake([PostTagged::class]);
+    taxo()->untag($post, [$php]); // detaches nothing -> no event
+
+    Event::assertNotDispatched(PostTagged::class);
 });
 
 // ---- rollback safety (AC-42) --------------------------------------------
