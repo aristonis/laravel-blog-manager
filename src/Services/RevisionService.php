@@ -146,7 +146,7 @@ final class RevisionService
             // revision mid-restore; retention re-applies on the next capture.
             $this->record($post, 'auto: before restore', null);
 
-            $this->applyAttributes($post, (array) ($snapshot['post'] ?? []), $restorePublishState);
+            $slugChanged = $this->applyAttributes($post, (array) ($snapshot['post'] ?? []), $restorePublishState);
             $this->rebuildBlocks($post, $resolution['blocks']);
 
             // Repaired (media remapped or dropped) => the restored state differs
@@ -156,7 +156,7 @@ final class RevisionService
             }
 
             $fresh = $post->refresh();
-            event(new PostRestored($fresh, $revision));
+            event(new PostRestored($fresh, $revision, $slugChanged));
 
             return $fresh;
         });
@@ -178,6 +178,10 @@ final class RevisionService
                 'published_at' => $post->published_at?->toIso8601String(),
             ],
             'blocks' => $post->blocks->map(fn (ContentBlock $block): array => [
+                // Capture the block's public_id so a restore can re-seat the SAME
+                // identity instead of minting a fresh ULID (M3a) — external
+                // deep-links / cache keys / analytics keyed on it stay valid.
+                'public_id' => $block->public_id,
                 'type' => $block->type,
                 'position' => $block->position,
                 'data' => $block->data,
@@ -207,6 +211,7 @@ final class RevisionService
 
         foreach ($blocks as $block) {
             $block = (array) $block;
+
             $media = $block['media'] ?? null;
             $mediaId = null;
 
@@ -237,7 +242,22 @@ final class RevisionService
                 $mediaId = $item->id;
             }
 
+            // M3b — registry MEMBERSHIP check, now guarding SURVIVORS only (blocks
+            // that will actually be rebuilt: text blocks + media blocks whose media
+            // resolved). get() throws BlockTypeNotRegisteredException on an unknown
+            // type, so a type unregistered since the snapshot fails loud at restore
+            // time instead of blowing up later at render. Placing it AFTER the
+            // media-missing `continue` means a block that is both unregistered AND
+            // un-restorable (missing media) is dropped under lenient rather than
+            // hard-failing the restore. This is a membership check only: restore
+            // deliberately does NOT re-run BlockType::validate() on snapshot data,
+            // so tightening a type's rules later can't break restore of old revisions.
+            $this->registry->get((string) ($block['type'] ?? ''));
+
             $resolved[] = [
+                // Carry the snapshot's block public_id through so rebuildBlocks can
+                // re-seat it (M3a); null/absent for pre-SG-4 snapshots.
+                'public_id' => $block['public_id'] ?? null,
                 'type' => $block['type'] ?? null,
                 'position' => $position++,
                 'data' => $block['data'] ?? null,
@@ -293,15 +313,28 @@ final class RevisionService
     }
 
     /**
+     * Apply the snapshot's post attributes. Returns whether the slug had to diverge
+     * from the snapshot's intended value (M4): the restore keeps its best-effort
+     * uniquify behaviour, but reports it so the divergence is observable rather than
+     * silent.
+     *
      * @param  array<string, mixed>  $attributes
      */
-    private function applyAttributes(Post $post, array $attributes, bool $restorePublishState): void
+    private function applyAttributes(Post $post, array $attributes, bool $restorePublishState): bool
     {
         if (is_string($attributes['title'] ?? null)) {
             $post->title = $attributes['title'];
         }
 
-        $post->slug = $this->slugs->unique(Post::class, Str::slug((string) ($attributes['slug'] ?? $post->slug)), $post->id, 'post');
+        // M4 — the snapshot's intended (normalized) slug. unique() may append a
+        // -2/-3 suffix if another post now holds it; capture whether that happened so
+        // the otherwise-silent re-uniquification can be surfaced on PostRestored.
+        $intendedSlug = Str::slug((string) ($attributes['slug'] ?? $post->slug));
+        $post->slug = $this->slugs->unique(Post::class, $intendedSlug, $post->id, 'post');
+        // An empty intended slug (degenerate/legacy snapshot) isn't a collision: the
+        // empty→'post' fallback substitution by unique() is expected, not a divergence
+        // worth surfacing — only a non-empty intended slug that got re-uniquified counts.
+        $slugChanged = $intendedSlug !== '' && $post->slug !== $intendedSlug;
 
         // author_id is intentionally NOT restored: it is ownership-sensitive, and a
         // restore should not silently reassign a post's author. A host that wants to
@@ -313,6 +346,8 @@ final class RevisionService
         }
 
         $post->save();
+
+        return $slugChanged;
     }
 
     /**
@@ -323,13 +358,25 @@ final class RevisionService
         $post->blocks()->delete();
 
         foreach ($blocks as $block) {
-            ContentBlock::forceCreate([
+            $attributes = [
                 'post_id' => $post->id,
                 'type' => $block['type'],
                 'position' => $block['position'],
                 'data' => $block['data'] ?? null,
                 'media_item_id' => $block['media_item_id'] ?? null,
-            ]);
+            ];
+
+            // M3a — re-seat the snapshot's block public_id so restore preserves block
+            // identity. HasPublicId's `creating` hook only mints when public_id is
+            // empty, so a provided id is kept; the old rows were deleted just above in
+            // this same tx, so there is no unique(public_id) collision. Pre-SG-4
+            // snapshots carry no public_id — omit the key and let HasPublicId mint.
+            $publicId = $block['public_id'] ?? null;
+            if (is_string($publicId) && $publicId !== '') {
+                $attributes['public_id'] = $publicId;
+            }
+
+            ContentBlock::forceCreate($attributes);
         }
 
         // Drop the now-stale cached relation so a later serialize()/refresh sees

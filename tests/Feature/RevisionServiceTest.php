@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
+use Aristonis\BlogManager\Blocks\BlockTypeRegistry;
+use Aristonis\BlogManager\Contracts\BlockType;
+use Aristonis\BlogManager\Enums\MediaKind;
 use Aristonis\BlogManager\Enums\PostStatus;
 use Aristonis\BlogManager\Events\PostRestored;
 use Aristonis\BlogManager\Events\PostRevisionCreated;
+use Aristonis\BlogManager\Exceptions\BlockTypeNotRegisteredException;
 use Aristonis\BlogManager\Exceptions\RevisionMediaMissingException;
 use Aristonis\BlogManager\Exceptions\RevisionNotFoundException;
 use Aristonis\BlogManager\Media\MediaManager;
@@ -233,4 +237,176 @@ it('rolls the whole restore back on failure (atomic)', function () {
     }
 
     expect($post->fresh()->title)->toBe('Changed'); // restore undone
+});
+
+// --- SG-4 / M3a: restore preserves block identity (public_ids) ---
+
+it('preserves every block public_id across a restore (block identity, M3a)', function () {
+    $post = seededPost();
+    $originalIds = $post->blocks->sortBy('position')->pluck('public_id')->values()->all();
+    expect($originalIds)->toHaveCount(3)->each->not->toBeEmpty();
+
+    $revision = revs()->snapshot($post);
+
+    // mutate the live tree so restore actually deletes + rebuilds the blocks
+    app(PostService::class)->update($post, ['title' => 'Changed']);
+    $post->blocks()->delete();
+
+    revs()->restore($post->fresh(), $revision->fresh());
+
+    $restoredIds = $post->fresh()->blocks->sortBy('position')->pluck('public_id')->values()->all();
+    expect($restoredIds)->toBe($originalIds); // same identities, not freshly minted
+});
+
+it('mints fresh block public_ids when restoring a pre-SG-4 snapshot that lacks them (backward-compat, M3a)', function () {
+    $post = seededPost();
+    $post->blocks()->delete();
+
+    // A hand-built legacy snapshot: block entries carry no `public_id` key, exactly
+    // as snapshots written before SG-4 do.
+    $snapshot = [
+        'post' => [
+            'title' => 'Legacy',
+            'slug' => 'legacy',
+            'author_id' => null,
+            'status' => 'draft',
+            'published_at' => null,
+        ],
+        'blocks' => [
+            ['type' => 'heading', 'position' => 0, 'data' => ['text' => 'H', 'level' => 1], 'media' => null],
+            ['type' => 'paragraph', 'position' => 1, 'data' => ['format' => 'plain', 'content' => 'x'], 'media' => null],
+        ],
+    ];
+
+    $revision = PostRevision::forceCreate([
+        'post_id' => $post->id,
+        'snapshot' => $snapshot,
+        'label' => 'legacy',
+        'created_by' => null,
+    ]);
+
+    revs()->restore($post->fresh(), $revision->fresh());
+
+    $blocks = $post->fresh()->blocks->sortBy('position')->values();
+    expect($blocks)->toHaveCount(2)
+        ->and($blocks->pluck('type')->all())->toBe(['heading', 'paragraph'])
+        ->and($blocks[0]->public_id)->not->toBeEmpty()
+        ->and($blocks[1]->public_id)->not->toBeEmpty();
+});
+
+// --- SG-4 / M3b: restore checks registry membership for every block ---
+
+it('fails loud restoring a block whose type was unregistered since the snapshot (M3b)', function () {
+    $registry = app(BlockTypeRegistry::class);
+    $gallery = new class implements BlockType
+    {
+        public function key(): string
+        {
+            return 'gallery';
+        }
+
+        public function validate(array $data): array
+        {
+            return $data;
+        }
+
+        public function requiresMediaKind(): ?MediaKind
+        {
+            return null;
+        }
+
+        public function renderPayload(array $data, ?string $mediaUrl): array
+        {
+            return ['ok' => true];
+        }
+    };
+    $registry->register($gallery);
+
+    $post = seededPost();
+    app(BlockService::class)->append($post, 'gallery', ['items' => []]);
+    $revision = revs()->snapshot($post->fresh());
+
+    // "unregister": drop the singletons so the registry — and the RevisionService
+    // that consumes it — re-resolve seeded with the defaults only (no 'gallery').
+    app()->forgetInstance(RevisionService::class);
+    app()->forgetInstance(BlockTypeRegistry::class);
+    expect(app(BlockTypeRegistry::class)->has('gallery'))->toBeFalse();
+
+    expect(fn () => revs()->restore($post->fresh(), $revision->fresh()))
+        ->toThrow(BlockTypeNotRegisteredException::class);
+});
+
+it('drops (not hard-fails) a block that is both an unregistered type and has missing media under lenient (FIX A)', function () {
+    config()->set('blog-manager.revisions.on_missing_media', 'lenient');
+
+    $post = seededPost();
+    $post->blocks()->delete();
+
+    // Hand-built snapshot: one registered survivor (heading, no media) plus one
+    // block that is BOTH an unregistered type ('gallery' is not in the default
+    // registry) AND references media that no longer exists. Under lenient the
+    // un-restorable media block must be DROPPED, not hard-fail the whole restore
+    // with BlockTypeNotRegisteredException — the membership check must not
+    // pre-empt the legitimate lenient drop.
+    $snapshot = [
+        'post' => [
+            'title' => 'Original',
+            'slug' => 'original',
+            'author_id' => null,
+            'status' => 'draft',
+            'published_at' => null,
+        ],
+        'blocks' => [
+            ['public_id' => null, 'type' => 'heading', 'position' => 0, 'data' => ['text' => 'H', 'level' => 1], 'media' => null],
+            ['public_id' => null, 'type' => 'gallery', 'position' => 1, 'data' => ['items' => []], 'media' => ['public_id' => 'gone-media-xyz', 'original_filename' => 'gone.png']],
+        ],
+    ];
+
+    $revision = PostRevision::forceCreate([
+        'post_id' => $post->id,
+        'snapshot' => $snapshot,
+        'label' => 'unregistered-with-missing-media',
+        'created_by' => null,
+    ]);
+
+    // The restore COMPLETES (no exception) and drops the un-restorable block; only
+    // the registered survivor remains.
+    revs()->restore($post->fresh(), $revision->fresh());
+
+    expect($post->fresh()->blocks->pluck('type')->all())->toBe(['heading']);
+});
+
+// --- SG-4 / M4: restore surfaces a silent slug re-uniquification ---
+
+it('flags slugChanged on PostRestored when the snapshot slug is now taken (M4)', function () {
+    Event::fake([PostRestored::class]);
+
+    $postA = seededPost(); // slug 'original'
+    $revision = revs()->snapshot($postA);
+
+    // move A off 'original', then let another post squat on it so the restore
+    // cannot reclaim the snapshot slug verbatim.
+    app(PostService::class)->update($postA, ['title' => 'Renamed', 'slug' => 'renamed']);
+    Post::create(['title' => 'Squatter', 'slug' => 'original']);
+
+    revs()->restore($postA->fresh(), $revision->fresh());
+
+    expect($postA->fresh()->slug)->toStartWith('original-') // suffixed variant
+        ->and($postA->fresh()->slug)->not->toBe('original');
+
+    Event::assertDispatched(PostRestored::class, fn (PostRestored $e): bool => $e->slugChanged === true);
+});
+
+it('does not flag slugChanged on PostRestored when the snapshot slug is free (M4 control)', function () {
+    Event::fake([PostRestored::class]);
+
+    $post = seededPost(); // slug 'original'
+    $revision = revs()->snapshot($post);
+    app(PostService::class)->update($post, ['title' => 'Changed']); // slug untouched by update
+
+    revs()->restore($post->fresh(), $revision->fresh());
+
+    expect($post->fresh()->slug)->toBe('original');
+
+    Event::assertDispatched(PostRestored::class, fn (PostRestored $e): bool => $e->slugChanged === false);
 });
