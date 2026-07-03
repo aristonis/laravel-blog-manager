@@ -73,17 +73,58 @@ final class MediaManager
     {
         $this->guard->ensure(Abilities::MEDIA_DELETE, $item);
 
-        if ($item->blocks()->exists()) {
-            throw new MediaInUseException('Media item is still referenced by a block.', ['media' => $item->public_id]);
-        }
-
         $adapter = $this->adapters->adapter($item->adapter);
 
+        // Row-first, binary-last. The DB row is removed inside the transaction;
+        // the binary is removed only at the TRUE outermost commit — so a rollback
+        // (including a host-owned outer transaction rolling back) leaves the file
+        // intact and never orphans a row against a deleted binary (H2 defect #1).
         DB::transaction(function () use ($item, $adapter): void {
-            $adapter->delete($item);
+            // Take a FOR UPDATE lock on THIS media row, then re-check in-use under
+            // that lock so check-and-delete is atomic against a concurrent append().
+            // The serialisation is the FK, not the lock alone: append()'s INSERT
+            // into content_blocks takes a KEY-SHARE lock on the referenced
+            // blog_media_items row (FK, nullOnDelete), which conflicts with the
+            // FOR UPDATE taken here — so a committed-or-in-flight append cannot
+            // interleave and silently lose its media_item_id via nullOnDelete
+            // (H2 defect #2). Do not drop this lock: it is what the FK contends on.
+            // NOTE: a fully-concurrent *uncommitted* append remains a narrow,
+            // inherent window of the nullOnDelete design and is not solved here.
+            MediaItem::query()->whereKey($item->getKey())->lockForUpdate()->first();
+
+            if ($item->blocks()->exists()) {
+                throw new MediaInUseException('Media item is still referenced by a block.', ['media' => $item->public_id]);
+            }
+
             $item->delete();
 
-            event(new MediaDeleted($item));
+            // Defer binary cleanup AND the MediaDeleted signal to the TRUE outermost
+            // commit. afterCommit() attaches to the current transaction record and
+            // only fires at transaction level 0 — so when a host wraps delete() in
+            // its own transaction (inner DB::transaction is a mere SAVEPOINT), the
+            // callback still waits for the host's real commit and is DISCARDED on a
+            // host rollback. That closes the nested-transaction reopening of H2.
+            //
+            // Ordering inside the callback is binary-first, then event: the in-memory
+            // $item still carries adapter/disk/path (MediaItem has no SoftDeletes),
+            // so the adapter can locate the binary even though the row is gone.
+            DB::afterCommit(function () use ($adapter, $item): void {
+                try {
+                    $adapter->delete($item);
+                } catch (Throwable $e) {
+                    // Post-commit: the record is already authoritatively deleted, so a
+                    // raw driver failure here must NOT surface to the caller as a total
+                    // failure. report() routes it to the host's exception handler. The
+                    // orphaned binary is reclaimable via the future orphan-media query
+                    // (backlog M7).
+                    report($e);
+                }
+
+                // The record IS deleted, so signal regardless of the binary outcome.
+                // We are at transaction level 0 here, so this ShouldDispatchAfterCommit
+                // event dispatches immediately — after the binary cleanup above.
+                event(new MediaDeleted($item));
+            });
         });
     }
 
