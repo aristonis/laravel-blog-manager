@@ -87,10 +87,42 @@ BlogManager::revisions()->restore($post, $revision, mediaRemap: [
 Set `revisions.on_missing_media = lenient` to instead drop the missing-media block and restore the rest.
 Deleting media is unchanged: refused while a **live** block references it, allowed when only history does.
 
+## Taxonomy (categories & tags)
+Classify posts along two independent axes. **Categories** are curated (unique names, must pre-exist);
+**tags** are free-form (names may repeat, auto-created on attach by default). Managing the term catalog is
+guarded by `blog.taxonomy.manage`; attaching/detaching a post's terms reuses `blog.post.update`.
+
+```php
+// Manage the term catalog (guarded by blog.taxonomy.manage)
+$news = BlogManager::taxonomy()->createCategory('News');          // unique name; slug derived
+$php  = BlogManager::taxonomy()->createTag('PHP');                // free-form
+BlogManager::taxonomy()->renameCategory($news, 'Breaking News');  // slug stays unless you pass one
+BlogManager::taxonomy()->deleteTag($php);                         // detaches pivots; posts survive
+
+// Attach to a post (guarded by blog.post.update). Categories by model or public id;
+// tags by model, public id, or name (auto-created when taxonomy.tags.auto_create is on).
+BlogManager::taxonomy()->categorize($post, [$news]);              // idempotent add
+BlogManager::taxonomy()->tag($post, ['php', 'laravel']);          // names -> find-or-create
+BlogManager::taxonomy()->syncCategories($post, [$news]);          // replace the whole set
+BlogManager::taxonomy()->uncategorize($post, [$news]);
+BlogManager::taxonomy()->untag($post, [$php]);
+
+// Read
+$terms = BlogManager::taxonomy()->for($post);                     // ['categories' => ..., 'tags' => ...]
+$all   = BlogManager::taxonomy()->categories();                   // flat, name-ordered
+$posts = BlogManager::taxonomy()->postsByCategory($news, onlyPublished: true); // newest-first, direct members
+$cat   = BlogManager::taxonomy()->getCategory('news');            // by public id or slug
+```
+
+Membership is **direct only** — `postsByCategory`/`postsByTag` return posts attached via the pivot, with no
+descendant rollup. Reads honor publishing visibility when you pass `onlyPublished: true`. Auto-creating a tag
+while tagging a post rides on `blog.post.update` (not `blog.taxonomy.manage`) — tags are free-form.
+
 ## Events
 Each mutation dispatches an after-commit event you can listen for: `PostCreated/Updated/Deleted`,
 `PostPublished/Unpublished`, `BlockAppended/Updated/Removed`, `BlocksReordered`, `MediaStored/Deleted`,
-`PostRevisionCreated`, `PostRestored`. The package ships no listeners. See [events.md](events.md).
+`PostRevisionCreated`, `PostRestored`, `Category/TagCreated/Updated/Deleted`, `PostCategorized`, `PostTagged`.
+The package ships no listeners. See [events.md](events.md).
 
 ## Building your own transport
 The package ships no controllers or routes — you wire your own. Call the services from a web controller, a

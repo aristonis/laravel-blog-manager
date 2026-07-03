@@ -4,6 +4,35 @@ All notable changes to `aristonis/laravel-blog-manager` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - unreleased
+
+Adds **taxonomy** — classify posts with categories and tags — on top of the core-only
+service package. No HTTP layer; drive it through the `BlogManager` facade.
+
+### Added — Taxonomy
+- **Two-axis classification.** Curated **categories** (unique names, must pre-exist) and
+  free-form **tags** (repeatable, auto-created on attach). New `Category` / `Tag` models +
+  `blog_categories` / `blog_tags` tables and `blog_post_category` / `blog_post_tag` pivots
+  (`unique(post_id, term_id)`); additive `Post::categories()` / `Post::tags()`.
+- **`TaxonomyService`** (`BlogManager::taxonomy()`): term lifecycle (`create`/`rename`/
+  `delete` category & tag), attach/detach (`categorize`/`tag` + `sync*` / `uncategorize` /
+  `untag`), and reads (`for`, `categories`, `tags`, `postsByCategory`, `postsByTag`,
+  `getCategory`, `getTag`). Slugs are per-table-unique and stable across renames (shared
+  `SlugGenerator`, extracted from the Post/Revision duplication).
+- **Direct-membership reads.** `postsBy*` returns posts attached via the pivot
+  (newest-first, no descendant rollup); `onlyPublished` filters through the publishing scope.
+- **Authorization.** New `blog.taxonomy.manage` ability guards the term catalog; attaching a
+  post's terms reuses `blog.post.update`. Auto-creating a tag while tagging a post rides on
+  `blog.post.update` (tags are free-form) — not the term-management ability.
+- **Events** `Category/Tag Created/Updated/Deleted`, `PostCategorized`, `PostTagged`
+  (after-commit).
+- **Config** `taxonomy.tags.auto_create` (default true) and `tables.{categories, tags,
+  post_category, post_tag}`.
+
+### Notes
+- Flat categories only — nesting (with descendant rollup) is deferred.
+- Pre-first-release: schema changes edit the original create-table migrations in place.
+
 ## [0.3.0] - unreleased
 
 Adds a **post revision history** on top of the core-only repositioning. The package

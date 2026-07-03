@@ -19,6 +19,14 @@ listeners**; these exist for your app to hook into.
 | `Events\MediaDeleted` | `MediaItem $media` | A media item is deleted |
 | `Events\PostRevisionCreated` | `PostRevision $revision` | A revision is captured (manual snapshot or auto on publish) |
 | `Events\PostRestored` | `Post $post`, `PostRevision $revision` | A post is restored from a revision |
+| `Events\CategoryCreated` | `Category $category` | A category is created |
+| `Events\CategoryUpdated` | `Category $category` | A category is renamed |
+| `Events\CategoryDeleted` | `Category $category` | A category is deleted (pivots detached) |
+| `Events\TagCreated` | `Tag $tag` | A tag is created (directly or auto-created on attach) |
+| `Events\TagUpdated` | `Tag $tag` | A tag is renamed |
+| `Events\TagDeleted` | `Tag $tag` | A tag is deleted (pivots detached) |
+| `Events\PostCategorized` | `Post $post`, `Category[] $added`, `Category[] $removed` | A post's categories change (one delta per op) |
+| `Events\PostTagged` | `Post $post`, `Tag[] $added`, `Tag[] $removed` | A post's tags change (one delta per op) |
 
 ## Listening
 ```php
