@@ -32,7 +32,8 @@ BlogManager::revisions()->restore($post, $revision, restorePublishState: true); 
 - Captures the **pre-restore** state first (never lost), rebuilds attributes + block tree, then dispatches
   `PostRestored` after commit. Restored blocks are **new rows** (content preserved, not their public ids).
 - **Content-only by default** — it does not change `status`/`published_at` (so a restore never silently
-  re-publishes) unless `restorePublishState: true`.
+  re-publishes) unless `restorePublishState: true`. It also **never changes `author_id`** (ownership-sensitive
+  — revert the author explicitly via `PostService::update()` if you need to).
 
 ## Missing media on restore
 If a snapshot references media that was deleted since:
@@ -52,5 +53,16 @@ history** is deletable (the gap is handled at restore, above). Do not add snapsh
 
 ## Hard rules
 - Never mutate an existing revision row — history is append-only.
-- Restore/snapshot are guarded by the `blog.post.update` ability (enforced when `enforce_in_services=true`).
+- `snapshot()` is guarded by `blog.post.update`; **`restore()` requires BOTH `blog.post.update` and
+  `blog.block.manage`** (it rebuilds the block tree). Guards apply when `enforce_in_services=true`.
 - Keep transactions in the service; a failed restore rolls back whole (atomic).
+
+## Host responsibilities (the package cannot enforce these)
+- **Authorize post access before reads.** `for()`/`get()` are unguarded at the service layer (like
+  `find()`/`paginate()`); only pass a `$post` the caller may see. `get()` is scoped to the post, so a
+  foreign revision id is a not-found, never a leak.
+- **Validate `mediaRemap` ownership.** Remap targets are resolved against the global media table (the package
+  has no media-ownership model). In a multi-tenant host, verify each remapped media id belongs to the same
+  tenant before calling `restore()`.
+- **Don't forward exception `context()` verbatim to untrusted clients** — the `RevisionMediaMissingException`
+  context lists deleted-media filenames. The default JSON envelope does not expose `context()`; keep it that way.

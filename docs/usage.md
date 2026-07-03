@@ -67,7 +67,7 @@ BlogManager::posts()->publish($post);
 $history = BlogManager::revisions()->for($post);          // or ->for($post, perPage: 20)
 $revision = BlogManager::revisions()->get($post, $revisionPublicId);
 
-// Restore — content only by default (does NOT change publish state); append-only
+// Restore — content only by default (does NOT change publish state or author); append-only
 BlogManager::revisions()->restore($post, $revision);
 BlogManager::revisions()->restore($post, $revision, restorePublishState: true);
 ```
