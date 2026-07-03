@@ -225,12 +225,13 @@ it('guards attach/detach with blog.post.update only when enforce_in_services is 
 });
 
 it('permits attach under enforce_in_services when blog.post.update is granted', function () {
+    // fixtures created before enforcement (term creation guards blog.taxonomy.manage)
+    $post = taxoPost();
+    $cat = taxo()->createCategory('News');
+
     config()->set('blog-manager.authorization.driver', 'gate');
     config()->set('blog-manager.authorization.enforce_in_services', true);
     Gate::define(Abilities::POST_UPDATE, fn ($user = null) => true); // pins the exact ability
-
-    $post = taxoPost();
-    $cat = taxo()->createCategory('News');
 
     taxo()->categorize($post, [$cat]); // granted -> the guard lets it through
 

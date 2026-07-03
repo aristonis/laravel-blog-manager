@@ -92,5 +92,6 @@ it('exposes the ability keys', function () {
     expect(Abilities::all())->toContain(
         'blog.post.create', 'blog.post.update', 'blog.post.delete',
         'blog.block.manage', 'blog.media.upload', 'blog.media.delete',
+        'blog.taxonomy.manage',
     );
 });

@@ -45,10 +45,11 @@ final class TaxonomyService
     /**
      * Create a curated category. Rejects an empty name and a duplicate name
      * (categories are unique); derives a table-unique slug. CategoryCreated
-     * fires after commit.
+     * fires after commit. Guarded by blog.taxonomy.manage.
      */
     public function createCategory(string $name, ?string $slug = null): Category
     {
+        $this->guard->ensure(Abilities::TAXONOMY_MANAGE);
         $name = $this->requireName($name);
         $this->requireUniqueCategoryName($name);
         $base = $this->baseSlug($slug, $name);
@@ -67,9 +68,24 @@ final class TaxonomyService
 
     /**
      * Create a free-form tag. Rejects an empty name; tag names may repeat, so
-     * only the slug is uniquified. TagCreated fires after commit.
+     * only the slug is uniquified. TagCreated fires after commit. Guarded by
+     * blog.taxonomy.manage — direct term management. (Auto-create during attach
+     * rides on the post's blog.post.update guard instead; see resolveTag.)
      */
     public function createTag(string $name, ?string $slug = null): Tag
+    {
+        $this->guard->ensure(Abilities::TAXONOMY_MANAGE);
+
+        return $this->persistTag($name, $slug);
+    }
+
+    /**
+     * Persist a tag (no authorization). Used by the guarded createTag and by the
+     * attach path's auto-create, which is already authorized as a post edit
+     * (blog.post.update) — so minting a tag by name while tagging a post does
+     * not additionally require blog.taxonomy.manage (O-4; tags are free-form).
+     */
+    private function persistTag(string $name, ?string $slug = null): Tag
     {
         $name = $this->requireName($name);
         $base = $this->baseSlug($slug, $name);
@@ -90,10 +106,11 @@ final class TaxonomyService
      * Rename a category. The slug is stable — changed only when a new one is
      * supplied (then re-uniquified, ignoring this row). Renaming to another
      * category's name is rejected (unique names). CategoryUpdated fires after
-     * commit.
+     * commit. Guarded by blog.taxonomy.manage.
      */
     public function renameCategory(Category $category, string $name, ?string $slug = null): Category
     {
+        $this->guard->ensure(Abilities::TAXONOMY_MANAGE);
         $name = $this->requireName($name);
         $this->requireUniqueCategoryName($name, $category->id);
 
@@ -115,9 +132,11 @@ final class TaxonomyService
     /**
      * Rename a tag. Tag names may repeat, so no uniqueness check; the slug is
      * stable unless a new one is supplied. TagUpdated fires after commit.
+     * Guarded by blog.taxonomy.manage.
      */
     public function renameTag(Tag $tag, string $name, ?string $slug = null): Tag
     {
+        $this->guard->ensure(Abilities::TAXONOMY_MANAGE);
         $name = $this->requireName($name);
 
         return DB::transaction(function () use ($tag, $name, $slug): Tag {
@@ -138,9 +157,12 @@ final class TaxonomyService
     /**
      * Delete a category, first detaching every post pivot row so posts survive
      * (a taxonomy op never deletes content). CategoryDeleted fires after commit.
+     * Guarded by blog.taxonomy.manage.
      */
     public function deleteCategory(Category $category): void
     {
+        $this->guard->ensure(Abilities::TAXONOMY_MANAGE);
+
         DB::transaction(function () use ($category): void {
             $category->posts()->detach();
             $category->delete();
@@ -151,10 +173,12 @@ final class TaxonomyService
 
     /**
      * Delete a tag, first detaching every post pivot row so posts survive.
-     * TagDeleted fires after commit.
+     * TagDeleted fires after commit. Guarded by blog.taxonomy.manage.
      */
     public function deleteTag(Tag $tag): void
     {
+        $this->guard->ensure(Abilities::TAXONOMY_MANAGE);
+
         DB::transaction(function () use ($tag): void {
             $tag->posts()->detach();
             $tag->delete();
@@ -493,7 +517,8 @@ final class TaxonomyService
      * A tag is a model, a public id, or a name. Public ids are opaque ULIDs, so
      * a ULID-shaped string resolves an existing tag by public id (unknown →
      * fail loud); any other string is a name, resolved to an existing tag or
-     * find-or-created when auto_create is on (else fail loud).
+     * find-or-created when auto_create is on (else fail loud). Auto-create uses
+     * the unguarded persistTag — the caller already cleared blog.post.update.
      */
     private function resolveTag(Tag|string $tag): Tag
     {
@@ -523,7 +548,7 @@ final class TaxonomyService
             throw new TagNotFoundException("Tag [{$value}] was not found.", ['name' => $value]);
         }
 
-        return $this->createTag($value);
+        return $this->persistTag($value);
     }
 
     /**

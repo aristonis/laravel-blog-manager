@@ -22,6 +22,8 @@ final class Abilities
 
     public const MEDIA_DELETE = 'blog.media.delete';
 
+    public const TAXONOMY_MANAGE = 'blog.taxonomy.manage';
+
     /**
      * @return list<string>
      */
@@ -34,6 +36,7 @@ final class Abilities
             self::BLOCK_MANAGE,
             self::MEDIA_UPLOAD,
             self::MEDIA_DELETE,
+            self::TAXONOMY_MANAGE,
         ];
     }
 }
