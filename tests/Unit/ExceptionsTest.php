@@ -13,6 +13,7 @@ use Aristonis\BlogManager\Exceptions\CategoryNotFoundException;
 use Aristonis\BlogManager\Exceptions\GenericBlogManagerException;
 use Aristonis\BlogManager\Exceptions\InvalidBlockDataException;
 use Aristonis\BlogManager\Exceptions\InvalidPostDataException;
+use Aristonis\BlogManager\Exceptions\InvalidSeoDataException;
 use Aristonis\BlogManager\Exceptions\InvalidTaxonomyDataException;
 use Aristonis\BlogManager\Exceptions\MediaAdapterNotFoundException;
 use Aristonis\BlogManager\Exceptions\MediaInUseException;
@@ -39,6 +40,7 @@ dataset('exceptions', [
     'category not found' => [CategoryNotFoundException::class, 5001, 'blog.category.not_found', 404],
     'tag not found' => [TagNotFoundException::class, 5002, 'blog.tag.not_found', 404],
     'invalid taxonomy data' => [InvalidTaxonomyDataException::class, 5003, 'blog.taxonomy.invalid_data', 422],
+    'invalid seo data' => [InvalidSeoDataException::class, 6001, 'blog.seo.invalid_data', 422],
     'generic' => [GenericBlogManagerException::class, 9001, 'blog.error', 500],
 ]);
 

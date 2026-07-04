@@ -55,6 +55,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | SEO (behavior only — table name lives in `tables` above)
+    |--------------------------------------------------------------------------
+    | Per-post SEO metadata resolution. `default_og_type` is applied by the
+    | resolver when a post has no explicit og_type (the og_type column has no DB
+    | default — config is the single source of truth). `excerpt_length` bounds
+    | the meta-description fallback derived from the post's first paragraph.
+    */
+    'seo' => [
+        'default_og_type' => 'article',
+        'excerpt_length' => 155,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Media
     |--------------------------------------------------------------------------
     | The active storage adapter, the disk/path it writes to, how MIME types
