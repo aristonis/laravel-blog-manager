@@ -207,6 +207,21 @@ it('dispatches PostRestored after commit on restore', function () {
     Event::assertDispatched(PostRestored::class);
 });
 
+it('prunes to the shipped default keep of 20, keeping the newest (H5)', function () {
+    // No config override — this exercises the DEFAULT shipped in config/blog-manager.php.
+    expect(config('blog-manager.revisions.keep'))->toBe(20);
+
+    $post = seededPost();
+    for ($i = 1; $i <= 21; $i++) {
+        revs()->snapshot($post, "v{$i}");
+    }
+
+    $labels = $post->fresh()->revisions->pluck('label')->all(); // newest-first
+    expect($labels)->toHaveCount(20)
+        ->and($labels[0])->toBe('v21')        // newest kept
+        ->and($labels)->not->toContain('v1'); // oldest pruned
+});
+
 it('prunes to revisions.keep, keeping the newest', function () {
     config()->set('blog-manager.revisions.keep', 2);
     $post = seededPost();

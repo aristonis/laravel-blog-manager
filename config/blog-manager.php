@@ -115,9 +115,11 @@ return [
         // always available regardless of this flag.
         'snapshot_on_publish' => true,
 
-        // How many revisions to keep per post. null = unlimited; an integer
-        // prunes the oldest beyond N after each capture.
-        'keep' => null,
+        // How many revisions to keep per post: an integer prunes the oldest
+        // beyond N after each capture (newest kept). Defaults to a finite 20 so
+        // history cannot grow unbounded out of the box; set to null for
+        // unlimited retention.
+        'keep' => 20,
 
         // What restore() does when a snapshot references media that was since
         // deleted: 'strict' throws with the missing list; 'lenient' restores
