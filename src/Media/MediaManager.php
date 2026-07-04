@@ -148,6 +148,11 @@ final class MediaManager
      * materialised in memory in one shot, so this is NOT safe to call against a
      * very large media table. A lazy/chunked reclamation variant is future work.
      *
+     * SECURITY: the returned MediaItem rows carry storage internals (disk / path /
+     * adapter). A host must gate any EXTERNAL exposure of this result behind an
+     * admin / MEDIA_DELETE authorization check — never hand it to unprivileged
+     * callers.
+     *
      * @return Collection<int, MediaItem>
      */
     public function orphaned(): Collection
