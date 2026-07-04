@@ -33,7 +33,7 @@ php artisan vendor:publish --tag=blog-manager-config
 | `authorization.driver` | `none` | `none` (allow-all) · `gate` · a custom driver key. |
 | `authorization.enforce_in_services` | `false` | Enforce abilities inside the services on every mutation. Default `false` — the host authorizes in its own transport layer. |
 | `revisions.snapshot_on_publish` | `true` | Auto-capture a revision whenever a post is published. |
-| `revisions.keep` | `null` | Revisions kept per post; `null` = unlimited, an integer prunes the oldest beyond N. |
+| `revisions.keep` | `20` | Revisions kept per post; an integer prunes the oldest beyond N, `null` = unlimited. |
 | `revisions.on_missing_media` | `strict` | Restore with deleted media: `strict` throws with the missing list; `lenient` drops those blocks and restores the rest. |
 | `taxonomy.tags.auto_create` | `true` | Attaching a tag by an unknown name creates it; set `false` to require tags to pre-exist (then an unknown name throws `TagNotFoundException`). |
 

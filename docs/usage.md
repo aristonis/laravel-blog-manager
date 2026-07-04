@@ -173,6 +173,10 @@ $seo->toArray();
 > **The package emits NO tags.** `ResolvedSeo` is scalars only — no HTML, no `<meta>`/`<title>`/JSON-LD/sitemap.
 > **You** serialize the DTO into markup in your own view/layer (`<meta name="description" content="...">`,
 > `<meta property="og:title" ...>`, robots, canonical). The package owns the *values*; the host owns the *tags*.
+> For `canonical_url` / `og_image`, HTML-escaping alone does **not** neutralize a `javascript:`/`data:` scheme
+> when the value lands in an `href`/`src`/redirect target, so validate the URL scheme (expect `http`/`https`)
+> before using it in those contexts — the standard `<link rel="canonical">` / `<meta property="og:image">`
+> attribute contexts are safe.
 
 ### Feed recipe — eager-load to stay N+1-free
 `resolve()` reads the post's `seo` row and (only when no meta/og description is set) its **first paragraph**

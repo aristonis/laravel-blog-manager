@@ -86,6 +86,10 @@ The old `->with('seo')`-only recipe would N+1 on blocks for every no-description
 - **You serialize the DTO to tags** in your own Blade/view/response layer. Escape values as you would any
   attribute output. Example: `description → <meta name="description">`, `robots → <meta name="robots">`,
   `canonicalUrl → <link rel="canonical">`, the `og` group → `<meta property="og:*">`.
+- **Validate URL schemes for `canonical_url` / `og_image`.** HTML-escaping alone does not neutralize a
+  `javascript:`/`data:` scheme when the value is placed in an `href`/`src`/redirect target, so check the scheme
+  (expect `http`/`https`) before using it there — the standard `<link rel="canonical">` / `<meta property="og:image">`
+  attribute contexts are safe.
 - **Authorize post access before reads** — `for()`/`resolve()` are unguarded at the service layer (house rule,
   like `PostService::find()`). Only resolve posts the caller may see.
 - Guards apply only when `authorization.enforce_in_services = true`; otherwise authorize upstream in your transport.
