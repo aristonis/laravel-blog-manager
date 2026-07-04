@@ -8,6 +8,7 @@ use Aristonis\BlogManager\Events\PostUnpublished;
 use Aristonis\BlogManager\Exceptions\PostNotFoundException;
 use Aristonis\BlogManager\Models\Post;
 use Aristonis\BlogManager\Services\PostService;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -118,6 +119,35 @@ it('paginates only published posts when requested', function () {
 
     expect($svc->paginate()->total())->toBe(3)
         ->and($svc->paginate(15, true)->pluck('public_id')->all())->toBe([$live->public_id]);
+
+    Carbon::setTestNow();
+});
+
+it('breaks a published_at tie by id so published pagination is deterministic across pages', function () {
+    Carbon::setTestNow('2026-07-02 12:00:00');
+    $svc = app(PostService::class);
+
+    $at = now()->subHour();
+    // Two posts share an identical published_at; b has the higher id. Without an
+    // id tiebreaker the order of the tie is engine-defined and can skip/duplicate
+    // a row across a page boundary.
+    $a = $svc->publish($svc->create(['title' => 'A']), $at);
+    $b = $svc->publish($svc->create(['title' => 'B']), $at);
+
+    expect($a->published_at->equalTo($b->published_at))->toBeTrue();
+
+    // Single page: the id tiebreaker orders the tie newest-id-first.
+    expect($svc->paginate(15, true)->pluck('id')->all())->toBe([$b->id, $a->id]);
+
+    // Across a perPage=1 boundary: page 1 + page 2 cover both rows, no skip/dup.
+    Paginator::currentPageResolver(fn () => 1);
+    $page1 = $svc->paginate(1, true)->pluck('id')->all();
+    Paginator::currentPageResolver(fn () => 2);
+    $page2 = $svc->paginate(1, true)->pluck('id')->all();
+    Paginator::currentPageResolver(fn () => 1);
+
+    expect($page1)->toBe([$b->id])
+        ->and($page2)->toBe([$a->id]);
 
     Carbon::setTestNow();
 });

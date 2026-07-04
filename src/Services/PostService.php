@@ -78,12 +78,19 @@ final class PostService
     }
 
     /**
+     * Paginate posts newest-first. The published-only branch orders by
+     * published_at and adds an `id` tiebreaker so posts sharing a published_at
+     * cannot skip/duplicate across page boundaries (a non-unique sort key is
+     * unstable otherwise — mirrors the taxonomy pagination fix). The unpublished
+     * branch already orders by the unique `id`, so it is deterministic as-is.
+     * No join is present here, so `id` needs no qualification.
+     *
      * @return LengthAwarePaginator<int, Post>
      */
     public function paginate(int $perPage = 15, bool $onlyPublished = false): LengthAwarePaginator
     {
         $query = $onlyPublished
-            ? Post::query()->published()->orderByDesc('published_at')
+            ? Post::query()->published()->orderByDesc('published_at')->orderByDesc('id')
             : Post::query()->orderByDesc('id');
 
         return $query->paginate($perPage);
