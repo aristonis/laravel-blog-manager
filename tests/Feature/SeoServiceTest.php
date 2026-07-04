@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Aristonis\BlogManager\Authorization\Abilities;
+use Aristonis\BlogManager\Blocks\ResolvedSeo;
 use Aristonis\BlogManager\Events\PostSeoUpdated;
 use Aristonis\BlogManager\Exceptions\AuthorizationDeniedException;
 use Aristonis\BlogManager\Exceptions\InvalidSeoDataException;
@@ -113,6 +114,8 @@ it('rejects an over-cap string field fail-loud and writes nothing', function (st
     'canonical_url > 2048' => ['canonical_url', 'https://x.test/'.str_repeat('a', 2048)],
     'og_image > 2048' => ['og_image', 'https://x.test/'.str_repeat('a', 2048)],
     'og_type > 64' => ['og_type', str_repeat('a', 65)],
+    'og_title > 255' => ['og_title', str_repeat('a', 256)],
+    'og_description > 500' => ['og_description', str_repeat('a', 501)],
 ]);
 
 it('rejects a non-string value where a string field is expected', function () {
@@ -194,6 +197,20 @@ it('never guards for(): reads succeed even when blog.post.update is denied', fun
 
     expect(seoService()->for($post))->not->toBeNull()
         ->and(seoService()->for($post)->meta_title)->toBe('Seeded');
+});
+
+it('never guards resolve(): resolution succeeds even when blog.post.update is denied', function () {
+    config()->set('blog-manager.authorization.driver', 'gate');
+    config()->set('blog-manager.authorization.enforce_in_services', true);
+    // blog.post.update deliberately NOT granted — writes would be denied, reads stay open.
+
+    $post = Post::create(['title' => 'Hello', 'slug' => 'hello']);
+    $post->seo()->create(['meta_title' => 'Seeded']); // direct persistence, bypasses the service guard
+
+    $resolved = seoService()->resolve($post);
+
+    expect($resolved)->toBeInstanceOf(ResolvedSeo::class)
+        ->and($resolved->title)->toBe('Seeded'); // meta_title ?? post.title
 });
 
 // ── after-commit event (AC-48) ────────────────────────────────────────────────
