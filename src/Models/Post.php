@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -93,6 +94,31 @@ final class Post extends Model
     public function revisions(): HasMany
     {
         return $this->hasMany(PostRevision::class)->orderByDesc('id');
+    }
+
+    /**
+     * The post's SEO metadata (1:1 satellite; null until set). Written/resolved by
+     * SeoService — persistence-only here.
+     *
+     * @return HasOne<PostSeo, $this>
+     */
+    public function seo(): HasOne
+    {
+        return $this->hasOne(PostSeo::class);
+    }
+
+    /**
+     * The post's first paragraph block (lowest `position`), or null when the post
+     * has no paragraph. Backs the SEO excerpt fallback without loading the whole
+     * block tree — one block per post, eager-loadable via ->with('firstParagraph').
+     *
+     * @return HasOne<ContentBlock, $this>
+     */
+    public function firstParagraph(): HasOne
+    {
+        return $this->hasOne(ContentBlock::class)
+            ->where('type', 'paragraph')
+            ->orderBy('position');
     }
 
     /**

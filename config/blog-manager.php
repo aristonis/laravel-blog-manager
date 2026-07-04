@@ -25,6 +25,7 @@ return [
         'content_blocks' => 'blog_content_blocks',
         'media_items' => 'blog_media_items',
         'post_revisions' => 'blog_post_revisions',
+        'post_seo' => 'blog_post_seo',
         'categories' => 'blog_categories',
         'tags' => 'blog_tags',
         'post_category' => 'blog_post_category',
