@@ -6,8 +6,12 @@ Goal: store media through a different backend (e.g. `spatie/laravel-medialibrary
 ## Steps
 1. **Implement** `Aristonis\BlogManager\Contracts\MediaStorageAdapter`:
    - `name()` — the driver key.
-   - `store(UploadedFile $file, MediaKind $kind): StoredMediaRef` — persist the **binary only** and return a
+   - `store(MediaSource $source, MediaKind $kind): StoredMediaRef` — persist the **binary only** and return a
      `StoredMediaRef($adapter, $disk, $path, $meta)`. Never write the DB record — the `MediaManager` does that.
+     The `MediaSource` (`Aristonis\BlogManager\Media\MediaSource`) carries **exactly one** of a filesystem
+     `$source->path` **or** an open `$source->stream` (plus `$source->mime` / `$source->originalFilename` /
+     `$source->size`) — branch on whichever is set. **Never close a supplied `$source->stream`**: the caller owns
+     the resource it opened (rewind/close is the caller's job). A `$source->size` of `0` means **unknown length**.
    - `url(MediaItem $item, ?int $ttlMinutes = null): ?string` — resolve a (optionally temporary) URL.
    - `delete(MediaItem $item): void` — remove the binary.
 

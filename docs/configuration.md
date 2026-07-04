@@ -11,6 +11,7 @@ php artisan vendor:publish --tag=blog-manager-config
 | Key | Default | Purpose |
 |-----|---------|---------|
 | `author_model` | `null` | Host model a post may reference as author (nullable, decoupled). e.g. `App\Models\User::class`. |
+| `author_key_type` | `bigint` | Column type for a post's author reference — one of `bigint` (default, numeric host keys) · `uuid` · `ulid` (string host keys). Declared **once** here and applied to **both** `blog_posts.author_id` and `blog_post_revisions.created_by` at migrate time; no DB foreign key either way (the author table belongs to the host). An unknown value fails loud (see Notes). |
 | `tables.posts` | `blog_posts` | Posts table name. |
 | `tables.content_blocks` | `blog_content_blocks` | Blocks table name. |
 | `tables.media_items` | `blog_media_items` | Media table name. |
@@ -38,6 +39,8 @@ php artisan vendor:publish --tag=blog-manager-config
 | `taxonomy.tags.auto_create` | `true` | Attaching a tag by an unknown name creates it; set `false` to require tags to pre-exist (then an unknown name throws `TagNotFoundException`). |
 
 ## Notes
+- **`author_key_type` fails loud on an unknown value** — it is validated in **two** places: at application bootstrap (the service provider's `boot()`) and again at migrate time, before any table is created. A value outside `bigint` · `uuid` · `ulid` throws `InvalidArgumentException` (`Invalid blog-manager.author_key_type [<value>]; allowed: bigint, uuid, ulid.`) — there is no silent fallback to `bigint`, and a bad config leaves the database in its pre-migration state (no partial table). Both author columns always share this one type; they never diverge.
+- **`author_key_type` is a one-way door** — the type is read **only at migrate time** and baked into the column. Changing it **after the first migrate has NO effect** on an existing table; reshaping the column requires the host's own alter + data-conversion migration. Pick it before the first migrate.
 - **Secure file default:** `media.allowed_mime.file` ships empty; file blocks stay unusable until you list MIME types.
 - Config values are read at call time — safe to override per environment.
 - Do not put closures in the config (breaks `config:cache`).

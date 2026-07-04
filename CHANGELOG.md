@@ -4,10 +4,41 @@ All notable changes to `aristonis/laravel-blog-manager` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Milestones 1 & 2: Hardening + SEO metadata
+## [Unreleased] — Milestones 1, 2 & 3: Hardening + SEO metadata + pre-1.0 freeze
 
-A correctness/concurrency/data-at-scale hardening pass (M1) plus **per-post SEO metadata**
-(M2). Core-only — no HTTP layer; drive it through the `BlogManager` facade. Still untagged.
+A correctness/concurrency/data-at-scale hardening pass (M1), **per-post SEO metadata**
+(M2), plus two pre-1.0 freeze decisions (M3): a configurable **author key type** and a
+`MediaSource` **media-input contract** (a breaking `MediaStorageAdapter` port change).
+Core-only — no HTTP layer; drive it through the `BlogManager` facade. Still untagged.
+
+### BREAKING — `MediaStorageAdapter` port input (Milestone 3)
+- **`MediaStorageAdapter::store()` now takes a `MediaSource`, not an `UploadedFile`.** The
+  first parameter changed from `Illuminate\Http\UploadedFile $file` to
+  `Aristonis\BlogManager\Media\MediaSource $source` (return type `StoredMediaRef` unchanged).
+  **Custom-adapter migration:** if you authored a `MediaStorageAdapter`, update your `store()`
+  signature to `store(MediaSource $source, MediaKind $kind): StoredMediaRef` and read the binary
+  from `$source->path` **or** `$source->stream()` (exactly one is set) instead of the old `$file`;
+  the `stream` is exposed via the `stream()` reader method (the property is `private` — the VO is
+  immutable). The caller-supplied `$source->mime` / `$source->originalFilename` / `$source->size` replace the
+  `UploadedFile` accessors. **Do not close a supplied stream** — the caller owns and closes the
+  resource it opened (the adapter only reads it). This is a deliberate pre-1.0 break, shipped
+  under `[Unreleased]` because the package is still untagged.
+
+### Added — Author key type + media source (Milestone 3)
+- **Configurable author key type.** New config `blog-manager.author_key_type` ∈
+  `{bigint, uuid, ulid}` (default `bigint`), declared once and applied to **both**
+  `blog_posts.author_id` and `blog_post_revisions.created_by` at migrate time — no DB foreign
+  key either way. The `bigint` default is byte-for-byte the previous schema. An unknown value
+  fails loud (`InvalidArgumentException`) at both application bootstrap and migrate time (before
+  any table is created — no partial migration, no silent fallback).
+- **`MediaSource` value object + `MediaManager::storeSource()`.** New immutable
+  `Media\MediaSource` (exactly one of a filesystem `path` XOR an open `stream`, plus
+  `mime`/`originalFilename`/`size`) is now the storage port's input, letting a host ingest media
+  from any binary source, not only an HTTP upload. `MediaManager::storeSource(MediaSource)` is the
+  primary entry (guard → validate → store → record → `MediaStored`); `MediaManager::store(UploadedFile)`
+  is retained as a behavior-preserving convenience overload that builds a `MediaSource` and
+  delegates. The caller-supplied MIME is trusted (never re-sniffed), and a `size: 0` source means
+  unknown length and skips the max-size cap (documented behavior, not a silent bypass).
 
 ### Added — SEO metadata (Milestone 2)
 - **Per-post SEO overrides + resolver.** New `blog_post_seo` table (1:1, cascade-on-delete,

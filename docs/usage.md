@@ -31,10 +31,60 @@ BlogManager::blocks()->remove($block);                      // remaining blocks 
 BlogManager::blocks()->reorder($post, $orderedPublicIds);   // full list, new order
 
 // Media (store first, then reference from a media block)
-$image = BlogManager::media()->store($request->file('photo'));
+$image = BlogManager::media()->store($request->file('photo'));   // UploadedFile convenience overload
 BlogManager::blocks()->append($post, 'image', ['alt' => 'A photo', 'caption' => 'Nice'], $image);
 BlogManager::media()->delete($image);                       // refused while a block references it
 ```
+
+### Storing media from any source (`MediaSource`)
+`store(UploadedFile)` is a thin convenience overload for the common HTTP path. The **primary** entry point is
+`storeSource(MediaSource)`, which lets you ingest a binary from **any** source — a filesystem path or an open
+stream — not only an `Illuminate\Http\UploadedFile`. Both run the identical pipeline (guard `MEDIA_UPLOAD` →
+validate → store → record → `MediaStored`); the `UploadedFile` overload simply builds a `MediaSource` and
+delegates.
+
+A `MediaSource` carries **exactly one** of a `path` **XOR** a `stream`, plus caller-supplied metadata:
+
+```php
+use Aristonis\BlogManager\Media\MediaSource;
+
+// From a filesystem path
+$item = BlogManager::media()->storeSource(new MediaSource(
+    path: '/absolute/path/to/photo.jpg',
+    stream: null,
+    mime: 'image/jpeg',            // caller-supplied — never re-sniffed from the bytes
+    originalFilename: 'photo.jpg',
+    size: filesize('/absolute/path/to/photo.jpg'),
+));
+
+// From an open stream — the CALLER owns and closes the handle
+$fh = fopen('php://temp', 'r+');
+// ... write + rewind $fh ...
+$item = BlogManager::media()->storeSource(new MediaSource(
+    path: null,
+    stream: $fh,
+    mime: 'image/png',
+    originalFilename: 'upload.png',
+    size: 0,                       // 0 = unknown length (e.g. an unbounded stream)
+));
+fclose($fh);                       // your responsibility — the adapter never closes it
+```
+
+Contract notes:
+- **Exactly one of `path` XOR `stream`.** An empty-string `path` is treated as *absent*; a `stream` must be a
+  PHP `resource` (an `fopen()` result — PSR-7 `StreamInterface` is not accepted). Passing **neither or both**
+  throws `MediaValidationException`.
+- **MIME is caller-supplied and trusted** — the package never re-detects it from the bytes (the host owns the
+  transport). The same MIME allowlist and per-kind size cap still apply, and the MIME is control-char sanitized
+  before it lands in any error message.
+- **Stream ownership stays with you.** The adapter reads the stream to EOF but **never closes** it — you own
+  the resource you opened and must close it yourself (rewind before passing if the handle is not at offset 0).
+- **`size: 0` means "unknown length"** and therefore **skips the max-size cap** — intended, documented behavior
+  for unbounded streams, not a silent bypass. Pass the real byte length to have the cap enforced; the host owns
+  transport, so pre-check size upstream when you cannot supply it here.
+  - **Security (host duty):** a caller passing `size: 0` (unknown length) bypasses the per-kind max-size cap, so
+    the host **must** enforce its own byte limit at the transport layer **before** calling `storeSource()` for
+    untrusted, unknown-length content.
 
 ## Rendering
 `render()` returns an ordered list of blocks, each carrying both the raw **`source`** (the stored data) and the

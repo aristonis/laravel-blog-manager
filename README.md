@@ -39,6 +39,11 @@ The service provider is auto-discovered. See **[docs/getting-started.md](docs/ge
   **`{ source, payload }`** pair (raw data + rendered output) so any frontend can re-theme.
 - **Media Manager** with a swappable storage adapter (default: Laravel filesystem) — register your own
   (e.g. `spatie/laravel-medialibrary`) without touching the core.
+- **Any binary source (`MediaSource`):** ingest media from a filesystem path or an open stream — not only an
+  HTTP `UploadedFile` — via `storeSource(MediaSource)`; the one-line `store(UploadedFile)` path stays for the
+  common case. The caller owns/closes any supplied stream.
+- **Configurable author key type:** match the host `User` primary key — `author_key_type` ∈ `bigint` (default)
+  · `uuid` · `ulid`, declared once and applied to both author columns, with no DB foreign key.
 - **Pluggable authorization** (default allow-all; `gate` or a custom driver) — the package defines ability keys,
   never roles/permissions. Enforce in your transport, or inside the services via `enforce_in_services`.
 - **Core-only, no HTTP layer** — the host owns its transport and API contract. Numbered-code exceptions and

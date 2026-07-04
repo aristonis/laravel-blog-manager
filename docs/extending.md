@@ -10,6 +10,9 @@ AI-agent skills and apply equally to humans:
 - **Add a media storage adapter** → [../.ai/skills/add-media-adapter.md](../.ai/skills/add-media-adapter.md)
   Implement `Contracts\MediaStorageAdapter`, then
   `app(MediaAdapterManager::class)->extend('key', fn () => new MyAdapter)` and set `media.adapter`.
+  The port's input is a `Media\MediaSource` (`store(MediaSource $source, MediaKind $kind): StoredMediaRef`) —
+  read `$source->path` **or** `$source->stream` (exactly one is set), **never close a supplied stream** (the
+  caller owns it), and treat `$source->size === 0` as unknown length.
 
 - **Add an authorization driver** → [../.ai/skills/add-authorizer.md](../.ai/skills/add-authorizer.md)
   Implement `Contracts\Authorizer`, then

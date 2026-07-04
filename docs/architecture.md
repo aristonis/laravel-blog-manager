@@ -16,6 +16,11 @@ A modular Laravel package: Eloquent persistence + transaction-owning services, w
   Rendering (`Blocks\BlockRenderer`) sanitizes: markdown via `Str::markdown(strip)`, plain via `e()`.
 - **Media storage** — `Contracts\MediaStorageAdapter` + `Media\MediaAdapterManager` (Illuminate Manager). Default:
   `FilesystemAdapter`. `MediaManager` validates → stores → records, compensating the binary on record failure.
+  The port's input is the immutable `Media\MediaSource` value object — exactly one of a `path` XOR a `stream`
+  plus caller-supplied `mime`/`originalFilename`/`size` — so the core is decoupled from HTTP: `storeSource(MediaSource)`
+  is the primary entry, and `store(UploadedFile)` is a convenience overload that builds a `MediaSource` and
+  delegates. An adapter reads a supplied stream but **never closes** it (the caller owns the resource); `size: 0`
+  means unknown length and skips the max-size cap; the MIME is caller-supplied and never re-sniffed from bytes.
 - **Authorization** — `Contracts\Authorizer` + `Authorization\AuthorizationManager`. Drivers: `none` (default),
   `gate`, or custom. Ability **keys** only; never models roles/permissions.
 
