@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Aristonis\BlogManager\Support\AuthorKeyType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -21,8 +22,10 @@ return new class extends Migration
             $table->json('snapshot');
             $table->string('label')->nullable(); // e.g. 'published', or host-supplied
             // Nullable, unconstrained host author reference (no DB FK — same rule as
-            // posts.author_id; the author table belongs to the host).
-            $table->unsignedBigInteger('created_by')->nullable();
+            // posts.author_id; the author table belongs to the host). Same
+            // host-configured column type as author_id; no standalone index
+            // (FR-77 — revisions are read via the composite (post_id, id)).
+            AuthorKeyType::apply($table, 'created_by')->nullable();
             $table->timestamps();
 
             // Composite index for RevisionService::prune's dominant access path

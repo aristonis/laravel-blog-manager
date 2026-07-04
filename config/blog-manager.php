@@ -16,6 +16,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Author key type
+    |--------------------------------------------------------------------------
+    | The column type used for a post's author reference (blog_posts.author_id
+    | and blog_post_revisions.created_by). Declared once here and applied to
+    | both columns at migrate time; there is no DB foreign key either way (the
+    | author table belongs to the host). One of: 'bigint' (default, numeric
+    | host keys), 'uuid', or 'ulid' (string host keys). An unknown value fails
+    | loud at application bootstrap and at migrate time.
+    |
+    | ONE-WAY DOOR: this type is read ONLY at migrate time and baked into the
+    | column. Changing it after the first migrate has NO effect on an existing
+    | table — reshaping the column requires the host's own alter + data-conversion
+    | migration.
+    */
+    'author_key_type' => 'bigint',
+
+    /*
+    |--------------------------------------------------------------------------
     | Table names
     |--------------------------------------------------------------------------
     | Override to avoid collisions with existing host tables.

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Aristonis\BlogManager\Support\AuthorKeyType;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -17,7 +18,8 @@ return new class extends Migration
             $table->string('slug')->unique();
             // Nullable, unconstrained author reference to the host-configured model
             // (no DB FK: the author table belongs to the host and may differ per app).
-            $table->unsignedBigInteger('author_id')->nullable()->index();
+            // Column type (bigint|uuid|ulid) is host-configured via author_key_type.
+            AuthorKeyType::apply($table, 'author_id')->nullable()->index();
             // Lifecycle: draft by default. Visibility is computed from status +
             // published_at (published AND published_at <= now); no 'scheduled' state.
             $table->string('status')->default('draft');

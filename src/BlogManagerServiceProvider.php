@@ -21,6 +21,7 @@ use Aristonis\BlogManager\Services\PostService;
 use Aristonis\BlogManager\Services\RevisionService;
 use Aristonis\BlogManager\Services\SeoService;
 use Aristonis\BlogManager\Services\TaxonomyService;
+use Aristonis\BlogManager\Support\AuthorKeyType;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -94,6 +95,12 @@ final class BlogManagerServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Fail-loud site #2 (O-1): validate the author key type at application
+        // bootstrap so a malformed value surfaces before any migration or
+        // request runs — not deferred to migrate time (the migration resolver
+        // is fail-loud site #1). Both sites throw the one shared message.
+        AuthorKeyType::resolve();
+
         if ($this->app->runningInConsole()) {
             $this->publishes([
                 __DIR__.'/../config/blog-manager.php' => config_path('blog-manager.php'),
