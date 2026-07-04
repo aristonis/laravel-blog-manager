@@ -20,7 +20,10 @@ return new class extends Migration
             $table->string('type'); // registry key
             $table->unsignedInteger('position'); // contiguous 0..n-1 per post (kept by BlockService)
             $table->json('data')->nullable(); // type payload
-            $table->foreignId('media_item_id')->nullable()->constrained($media)->nullOnDelete();
+            // Postgres does not auto-index the constrained() FK column, so index it
+            // explicitly: serves MediaManager::orphaned()'s anti-join scan and the
+            // nullOnDelete cascade on every media delete (MySQL/InnoDB would, Postgres does not).
+            $table->foreignId('media_item_id')->nullable()->index()->constrained($media)->nullOnDelete();
             // Uniqueness enforced at the DB; BlockService reorders in two phases to
             // avoid a transient collision inside the transaction.
             $table->unique(['post_id', 'position']);

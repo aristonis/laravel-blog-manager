@@ -24,6 +24,13 @@ return new class extends Migration
             // posts.author_id; the author table belongs to the host).
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
+
+            // Composite index for RevisionService::prune's dominant access path
+            // (WHERE post_id = ? ORDER BY id DESC LIMIT keep): an index range on
+            // post_id plus a reverse scan on the trailing id, no per-group sort.
+            // Postgres does not auto-index the constrained() FK column, so index
+            // it explicitly (MySQL/InnoDB would, SQLite/Postgres do not).
+            $table->index(['post_id', 'id']);
         });
     }
 

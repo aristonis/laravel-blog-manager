@@ -20,9 +20,17 @@ return new class extends Migration
             $table->unsignedBigInteger('author_id')->nullable()->index();
             // Lifecycle: draft by default. Visibility is computed from status +
             // published_at (published AND published_at <= now); no 'scheduled' state.
-            $table->string('status')->default('draft')->index();
+            $table->string('status')->default('draft');
             $table->timestamp('published_at')->nullable()->index();
             $table->timestamps();
+
+            // Composite index for the dominant "published + recency" access path
+            // (Post::scopePublished filters status then constrains/orders by
+            // published_at). It also serves a status-only lookup via its leading
+            // prefix, so `status` carries no separate standalone index (M6).
+            // `published_at` keeps its own index above: it is NOT a prefix of this
+            // composite, so a published_at-only filter still needs it.
+            $table->index(['status', 'published_at']);
         });
     }
 
