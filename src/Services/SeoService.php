@@ -6,12 +6,14 @@ namespace Aristonis\BlogManager\Services;
 
 use Aristonis\BlogManager\Authorization\Abilities;
 use Aristonis\BlogManager\Authorization\ServiceAuthorizer;
+use Aristonis\BlogManager\Blocks\ResolvedSeo;
 use Aristonis\BlogManager\Events\PostSeoUpdated;
 use Aristonis\BlogManager\Exceptions\InvalidSeoDataException;
 use Aristonis\BlogManager\Models\Post;
 use Aristonis\BlogManager\Models\PostSeo;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Per-post SEO metadata writes (the read/resolve path lands in SG-3). Writes are
@@ -33,6 +35,12 @@ final class SeoService
 
     /** Max length of og_type. */
     public const OG_TYPE_MAX = 64;
+
+    /** Config fallback for the resolved og:type when neither stored nor configured. */
+    private const DEFAULT_OG_TYPE = 'article';
+
+    /** Config fallback for the excerpt character budget when unset/invalid. */
+    private const DEFAULT_EXCERPT_LENGTH = 155;
 
     /**
      * The string overrides and their fail-loud length caps. Every string field
@@ -96,6 +104,142 @@ final class SeoService
     public function for(Post $post): ?PostSeo
     {
         return $post->seo()->first();
+    }
+
+    /**
+     * The post's resolved SEO meta-bag with every fallback applied (design §3.4).
+     * UNGUARDED, pure: no writes, deterministic, idempotent (NFR-26). The page
+     * `title` is the meta title or the post title — `og_title` never overrides it
+     * (D-c). `loadMissing('seo')` reuses an eager-loaded relation (feed perf,
+     * NFR-28); the block tree is touched only via `firstParagraph` and only when a
+     * description must be derived — never the whole tree.
+     */
+    public function resolve(Post $post): ResolvedSeo
+    {
+        $seo = $this->loadedSeoFor($post);
+
+        // No stored row → resolve purely from the post (title + derived excerpt);
+        // every override is at its default. Split so the has-row branch reads plain
+        // (non-nullsafe) attributes over a guaranteed-present record.
+        if ($seo === null) {
+            $title = $post->title;
+            $description = $this->excerpt($post);
+
+            return new ResolvedSeo(
+                title: $title,
+                description: $description,
+                canonicalUrl: null,
+                noindex: false,
+                nofollow: false,
+                ogTitle: $title,
+                ogDescription: $description,
+                ogImage: null,
+                ogType: $this->defaultOgType(),
+            );
+        }
+
+        // og_title/og_description never override the page title/description (D-c);
+        // the excerpt is derived only when meta_description is unset (feed perf).
+        $title = $seo->meta_title ?? $post->title;
+        $description = $seo->meta_description ?? $this->excerpt($post);
+
+        return new ResolvedSeo(
+            title: $title,
+            description: $description,
+            canonicalUrl: $seo->canonical_url,
+            noindex: $seo->noindex,
+            nofollow: $seo->nofollow,
+            ogTitle: $seo->og_title ?? $title,
+            ogDescription: $seo->og_description ?? $description,
+            ogImage: $seo->og_image,
+            ogType: $seo->og_type ?? $this->defaultOgType(),
+        );
+    }
+
+    /**
+     * The post's stored SEO row via the (eager-loadable) relation, or null when
+     * unset — the optional 1:1 satellite the resolver's ?? fallbacks build on.
+     * Uses loadMissing so an eager-loaded feed reuses the relation (NFR-28) rather
+     * than re-querying like for().
+     */
+    private function loadedSeoFor(Post $post): ?PostSeo
+    {
+        $post->loadMissing('seo');
+
+        // Read the now-loaded relation from the relations bag without re-querying
+        // (feed perf, NFR-28). The hasOne accessor is statically non-null, but a
+        // post with no SEO row genuinely resolves null at runtime; the raw bag is an
+        // honest mixed, so the null case is preserved for the resolver's fallbacks.
+        $seo = $post->getRelations()['seo'] ?? null;
+
+        return $seo instanceof PostSeo ? $seo : null;
+    }
+
+    /**
+     * The excerpt fallback (O-2): the first paragraph block's text, markdown/HTML
+     * stripped to plain text, mb-safe word-boundary truncated to the configured
+     * budget. No paragraph — or an empty/whitespace-only one — yields null so the
+     * host, not the package, decides how to render a description-less post. Reads
+     * one block via `firstParagraph` (loadMissing reuses an eager load), never the
+     * full block tree (NFR-28).
+     */
+    private function excerpt(Post $post): ?string
+    {
+        $post->loadMissing('firstParagraph');
+        $paragraph = $post->firstParagraph;
+
+        if ($paragraph === null) {
+            return null;
+        }
+
+        $plain = $this->toPlainText(is_array($paragraph->data) ? $paragraph->data : []);
+
+        if ($plain === '') {
+            return null;
+        }
+
+        return Str::limit($plain, $this->excerptLength(), preserveWords: true);
+    }
+
+    /**
+     * Reduce a paragraph block's stored `data` to plain, single-spaced text. A
+     * markdown paragraph is rendered (raw HTML stripped) then de-tagged and
+     * entity-decoded; a plain paragraph is literal text left intact (never
+     * `strip_tags`ed, so a literal `<` a user typed is not swallowed). Whitespace
+     * runs collapse to single spaces so multi-line bodies excerpt cleanly.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function toPlainText(array $data): string
+    {
+        $content = is_string($data['content'] ?? null) ? $data['content'] : '';
+
+        if (trim($content) === '') {
+            return '';
+        }
+
+        if (($data['format'] ?? 'plain') === 'markdown') {
+            $html = Str::markdown($content, ['html_input' => 'strip', 'allow_unsafe_links' => false]);
+            $content = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+
+        return trim((string) preg_replace('/\s+/u', ' ', $content));
+    }
+
+    /** The configured og:type default, coerced to a non-empty string fallback. */
+    private function defaultOgType(): string
+    {
+        $type = config('blog-manager.seo.default_og_type', self::DEFAULT_OG_TYPE);
+
+        return is_string($type) && $type !== '' ? $type : self::DEFAULT_OG_TYPE;
+    }
+
+    /** The configured excerpt character budget, coerced to a positive int fallback. */
+    private function excerptLength(): int
+    {
+        $length = config('blog-manager.seo.excerpt_length', self::DEFAULT_EXCERPT_LENGTH);
+
+        return is_int($length) && $length > 0 ? $length : self::DEFAULT_EXCERPT_LENGTH;
     }
 
     /**
