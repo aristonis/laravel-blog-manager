@@ -6,7 +6,7 @@ A backend Laravel package for managing blog posts as **ordered content blocks** 
 the UI **and the transport** — drive the package through the `BlogManager` facade / services and wire your own
 controllers or API over them.
 
-> Status: **v0.4 in development.** Requires PHP ^8.2 and Laravel 12 or 13.
+> Status: **v0.5 in development.** Requires PHP ^8.2 and Laravel 12 or 13.
 
 ## Install
 
@@ -32,6 +32,9 @@ The service provider is auto-discovered. See **[docs/getting-started.md](docs/ge
   re-upload flow for media deleted since the snapshot. No diff engine, no autosave.
 - **Taxonomy:** classify posts with **categories** (curated, unique) and **tags** (free-form, auto-created),
   and read posts by term. Flat in v0.4 (nesting deferred). Guarded by `blog.taxonomy.manage`.
+- **SEO metadata:** per-post meta/OpenGraph overrides + a pure **resolver** that returns a flat, typed meta-bag
+  (`ResolvedSeo`) with fallbacks (post title, first-paragraph excerpt, config `og:type`). The package emits **no
+  tags** — you serialize the DTO into `<meta>` in your own view.
 - Paragraph text stored as `plain`/`markdown`, rendered to **sanitized HTML**. Every block is served as a
   **`{ source, payload }`** pair (raw data + rendered output) so any frontend can re-theme.
 - **Media Manager** with a swappable storage adapter (default: Laravel filesystem) — register your own

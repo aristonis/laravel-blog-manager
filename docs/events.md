@@ -27,6 +27,7 @@ listeners**; these exist for your app to hook into.
 | `Events\TagDeleted` | `Tag $tag` | A tag is deleted (pivots detached) |
 | `Events\PostCategorized` | `Post $post`, `Category[] $added`, `Category[] $removed` | A post's categories change (one delta per op) |
 | `Events\PostTagged` | `Post $post`, `Tag[] $added`, `Tag[] $removed` | A post's tags change (one delta per op) |
+| `Events\PostSeoUpdated` | `Post $post` | A post's SEO metadata is set or updated (`SeoService::set`/`update`) |
 
 ## Listening
 ```php

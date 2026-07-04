@@ -12,6 +12,7 @@ changing code — they encode how to use and extend the package correctly and fa
    - `skills/add-authorizer.md` — register an authorization driver (SG-6).
    - `skills/manage-revisions.md` — capture, list, and non-destructively restore post revisions (v0.3).
    - `skills/manage-taxonomy.md` — classify posts with categories & tags, and read posts by term (v0.4).
+   - `skills/manage-seo.md` — attach per-post SEO metadata and resolve it to a host-serializable meta-bag (v0.5).
    - `skills/run-tests.md` — Pest, Pint, Larastan commands (SG-9 finalized).
 
 ## Orientation

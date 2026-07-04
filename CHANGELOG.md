@@ -4,10 +4,29 @@ All notable changes to `aristonis/laravel-blog-manager` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Milestone 1: Bug Fixes & Hardening
+## [Unreleased] — Milestones 1 & 2: Hardening + SEO metadata
 
-Correctness, concurrency, and data-at-scale hardening pass over the core. No new domain
-features; internal-only unless noted. Still untagged.
+A correctness/concurrency/data-at-scale hardening pass (M1) plus **per-post SEO metadata**
+(M2). Core-only — no HTTP layer; drive it through the `BlogManager` facade. Still untagged.
+
+### Added — SEO metadata (Milestone 2)
+- **Per-post SEO overrides + resolver.** New `blog_post_seo` table (1:1, cascade-on-delete,
+  `unique(post_id)`), a `PostSeo` model, and `Post::seo()` / `Post::firstParagraph()` `hasOne`
+  relations. Overrides: `meta_title`, `meta_description`, `canonical_url`, `noindex`, `nofollow`,
+  `og_title`, `og_description`, `og_image`, `og_type`.
+- **`SeoService`** (`BlogManager::seo()`): `set` (full replace — omitted fields reset), `update`
+  (partial), `for` (raw row), and `resolve` → a readonly **`ResolvedSeo`** meta-bag with a
+  fallback chain (meta over post title, meta/og description over a first-paragraph excerpt,
+  `og_title` over the page title **without** changing `<title>`, `og_type` over config). Writes are
+  guard-first (`blog.post.update`), trim + fail-loud length-capped (no silent truncation), and
+  unique-violation-retry safe.
+- **No tags emitted (by design).** `ResolvedSeo` is scalars + a symmetric `toArray()`; the host
+  serializes it into `<meta>`/`<title>`/robots/canonical/OG. No JSON-LD or sitemap.
+- **Feed contract:** eager-load `->with(['seo', 'firstParagraph'])` so `resolve()` stays a constant
+  2 loads, size-independent (never an N+1 on blocks).
+- **Event** `PostSeoUpdated` (after-commit). **Exception** `InvalidSeoDataException`
+  (`6001` / `blog.seo.invalid_data` / 422; new `6xxx` SEO range). **Config** `tables.post_seo`
+  and `seo.{default_og_type, excerpt_length}`.
 
 ### Changed
 - **`revisions.keep` default is now `20`** (was `null` = unlimited) so revision history
