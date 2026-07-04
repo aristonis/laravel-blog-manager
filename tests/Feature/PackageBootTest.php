@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Aristonis\BlogManager\BlogManager;
 use Aristonis\BlogManager\Facades\BlogManager as BlogManagerFacade;
+use Aristonis\BlogManager\Services\SeoService;
 use Aristonis\BlogManager\Services\TaxonomyService;
 
 it('registers the container binding and merges package config', function () {
@@ -20,4 +21,8 @@ it('resolves the BlogManager facade', function () {
 
 it('exposes the taxonomy service accessor', function () {
     expect(app('blog-manager')->taxonomy())->toBeInstanceOf(TaxonomyService::class);
+});
+
+it('exposes the SEO service accessor', function () {
+    expect(app('blog-manager')->seo())->toBeInstanceOf(SeoService::class);
 });

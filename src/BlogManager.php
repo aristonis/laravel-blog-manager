@@ -11,6 +11,7 @@ use Aristonis\BlogManager\Models\Post;
 use Aristonis\BlogManager\Services\BlockService;
 use Aristonis\BlogManager\Services\PostService;
 use Aristonis\BlogManager\Services\RevisionService;
+use Aristonis\BlogManager\Services\SeoService;
 use Aristonis\BlogManager\Services\TaxonomyService;
 
 /**
@@ -23,7 +24,7 @@ final class BlogManager
     /**
      * Package version — the single source of truth for the release string.
      */
-    public const VERSION = '0.4.0';
+    public const VERSION = '0.5.0';
 
     public function __construct(
         private readonly PostService $posts,
@@ -32,6 +33,7 @@ final class BlogManager
         private readonly BlockRenderer $renderer,
         private readonly RevisionService $revisions,
         private readonly TaxonomyService $taxonomy,
+        private readonly SeoService $seo,
     ) {}
 
     public function posts(): PostService
@@ -57,6 +59,11 @@ final class BlogManager
     public function taxonomy(): TaxonomyService
     {
         return $this->taxonomy;
+    }
+
+    public function seo(): SeoService
+    {
+        return $this->seo;
     }
 
     /**
