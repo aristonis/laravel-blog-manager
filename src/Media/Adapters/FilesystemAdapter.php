@@ -7,10 +7,12 @@ namespace Aristonis\BlogManager\Media\Adapters;
 use Aristonis\BlogManager\Contracts\MediaStorageAdapter;
 use Aristonis\BlogManager\Enums\MediaKind;
 use Aristonis\BlogManager\Exceptions\MediaStorageFailedException;
+use Aristonis\BlogManager\Media\MediaSource;
 use Aristonis\BlogManager\Media\StoredMediaRef;
 use Aristonis\BlogManager\Models\MediaItem;
-use Illuminate\Http\UploadedFile;
+use Illuminate\Http\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -25,19 +27,60 @@ final class FilesystemAdapter implements MediaStorageAdapter
         return 'filesystem';
     }
 
-    public function store(UploadedFile $file, MediaKind $kind): StoredMediaRef
+    public function store(MediaSource $source, MediaKind $kind): StoredMediaRef
     {
         $disk = $this->disk();
 
         /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
         $storage = Storage::disk($disk);
-        $path = $storage->putFile($this->path(), $file);
+
+        // A MediaSource carries exactly one of a path XOR a stream (enforced by its
+        // constructor). Persist from whichever is present; the stream branch never
+        // closes the caller-owned handle (O-3).
+        $path = $source->path !== null
+            ? $this->storeFromPath($storage, $source->path)
+            : $this->storeFromStream($storage, $source);
 
         if (! is_string($path)) {
             throw new MediaStorageFailedException('Failed to store the media file.', ['disk' => $disk]);
         }
 
         return new StoredMediaRef('filesystem', $disk, $path);
+    }
+
+    /**
+     * Persist a binary already on a filesystem path, preserving today's hashed-name
+     * placement under the configured media directory. The extension is derived from
+     * the bytes by putFile()->guessExtension(), never from caller-supplied metadata.
+     *
+     * @return string|false the stored relative path, or false on failure
+     */
+    private function storeFromPath(\Illuminate\Filesystem\FilesystemAdapter $storage, string $path): string|false
+    {
+        return $storage->putFile($this->path(), new File($path));
+    }
+
+    /**
+     * Persist a binary from a caller-supplied, open stream. The handle is read but
+     * NEVER closed here — the caller owns and closes the resource it opened (O-3).
+     *
+     * The stored name carries NO caller-derived extension: honoring the caller's
+     * originalFilename here (e.g. "shell.php") would create an executable path — a
+     * web-shell vector, and asymmetric with the path branch which derives the
+     * extension from the bytes. The human-readable name is preserved separately in
+     * MediaItem.original_filename.
+     *
+     * @return string|false the stored relative path, or false on failure
+     */
+    private function storeFromStream(\Illuminate\Filesystem\FilesystemAdapter $storage, MediaSource $source): string|false
+    {
+        $target = $this->path().'/'.Str::random(40);
+
+        if ($storage->writeStream($target, $source->stream()) === false) {
+            return false;
+        }
+
+        return $target;
     }
 
     public function url(MediaItem $item, ?int $ttlMinutes = null): ?string

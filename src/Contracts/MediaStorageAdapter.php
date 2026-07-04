@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Aristonis\BlogManager\Contracts;
 
 use Aristonis\BlogManager\Enums\MediaKind;
+use Aristonis\BlogManager\Media\MediaSource;
 use Aristonis\BlogManager\Media\StoredMediaRef;
 use Aristonis\BlogManager\Models\MediaItem;
-use Illuminate\Http\UploadedFile;
 
 /**
  * The storage port. Handles the binary only — never the database record (that is
@@ -19,8 +19,14 @@ interface MediaStorageAdapter
     /** The driver key this adapter is registered under. */
     public function name(): string;
 
-    /** Persist the uploaded binary and return a reference to it. */
-    public function store(UploadedFile $file, MediaKind $kind): StoredMediaRef;
+    /**
+     * Persist the binary described by the source and return a reference to it.
+     *
+     * The source carries exactly one of a filesystem path or an open stream. The
+     * adapter reads a supplied stream but never closes it — the caller owns the
+     * resource (O-3).
+     */
+    public function store(MediaSource $source, MediaKind $kind): StoredMediaRef;
 
     /** Resolve a (optionally temporary) URL for the item, or null if unavailable. */
     public function url(MediaItem $item, ?int $ttlMinutes = null): ?string;
