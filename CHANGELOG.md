@@ -4,6 +4,47 @@ All notable changes to `aristonis/laravel-blog-manager` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Milestone 1: Bug Fixes & Hardening
+
+Correctness, concurrency, and data-at-scale hardening pass over the core. No new domain
+features; internal-only unless noted. Still untagged.
+
+### Changed
+- **`revisions.keep` default is now `20`** (was `null` = unlimited) so revision history
+  cannot grow unbounded out of the box. Set `revisions.keep => null` to restore unlimited
+  retention. Hosts that published their config before this release keep their own value —
+  set it explicitly.
+- **`MediaDeleted` now dispatches after the outermost transaction commits** (was inside the
+  delete transaction). A listener that assumed atomicity with the row delete sees a small
+  timing shift; the binary removal is likewise deferred to after commit.
+
+### Added
+- **Orphaned-media reclamation query** — `MediaManager::orphaned()` lists media items no live
+  content block references (a read-only seam; returns storage internals, so gate external
+  exposure behind admin authorization).
+- **Data-at-scale indexes** — composite `(status, published_at)` on `blog_posts`, plus explicit
+  PostgreSQL-safe FK indexes on `content_blocks.media_item_id` and `blog_post_revisions
+  (post_id, id)` (Postgres does not auto-index FK columns).
+
+### Fixed
+- **Mass-assignment lockdown** — structural/internal columns (`disk`/`path`/`adapter`,
+  `post_id`/`type`, `snapshot`, `public_id`) removed from every model's `$fillable`; services
+  set them explicitly.
+- **Block-position concurrency** — `append`/`reorder` guard `position` with a row lock and a
+  bounded unique-violation retry, translating collisions to a typed exception.
+- **Media deletion is rollback- and nesting-safe** — in-transaction re-check under a row lock;
+  binary + event deferred to the true outermost commit.
+- **Revision restore preserves block identity** (re-seats `public_id`), re-resolves each block
+  type through the registry (fail-loud on unknown), and surfaces `slugChanged` on `PostRestored`.
+- **Render N+1 removed** — `render()` eager-loads `blocks.mediaItem`.
+- **Taxonomy attach/detach events fire only on a real change** (no phantom event on a no-op sync).
+- **Render hardening** — heading `level` clamped to 1–6; media `url` escaped; category-name
+  unique-violation and `temporaryUrl`-unsupported disks degrade to typed/safe results; MIME
+  control-chars stripped from error messages; post titles trimmed.
+- **Pagination stability** — the published feed breaks a `published_at` tie by `id`.
+- **Tag public-id resolution is case-insensitive**; slug uniquification is capped with a random
+  fallback so it always terminates.
+
 ## [0.4.0] - unreleased
 
 Adds **taxonomy** — classify posts with categories and tags — on top of the core-only
