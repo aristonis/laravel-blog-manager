@@ -13,8 +13,11 @@ use Aristonis\BlogManager\Events\MediaStored;
 use Aristonis\BlogManager\Exceptions\MediaInUseException;
 use Aristonis\BlogManager\Exceptions\MediaStorageFailedException;
 use Aristonis\BlogManager\Exceptions\MediaValidationException;
+use Aristonis\BlogManager\Models\ContentBlock;
 use Aristonis\BlogManager\Models\MediaItem;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -131,6 +134,33 @@ final class MediaManager
     public function url(MediaItem $item, ?int $ttlMinutes = null): ?string
     {
         return $this->adapters->adapter($item->adapter)->url($item, $ttlMinutes);
+    }
+
+    /**
+     * Media items not referenced by any LIVE content block (through
+     * content_blocks.media_item_id). A read-only reclamation seam — it never
+     * deletes. Revision-snapshot JSON references deliberately do NOT count as
+     * live references, so a media item kept alive only by an old snapshot is
+     * still reported as orphaned. Unguarded, consistent with the package's
+     * other read paths (no authorization on reads).
+     *
+     * WARNING: returns an unbounded eager Collection — the full orphan set is
+     * materialised in memory in one shot, so this is NOT safe to call against a
+     * very large media table. A lazy/chunked reclamation variant is future work.
+     *
+     * @return Collection<int, MediaItem>
+     */
+    public function orphaned(): Collection
+    {
+        $blocks = (new ContentBlock)->getTable();
+
+        return MediaItem::query()
+            ->whereNotIn('id', function (QueryBuilder $query) use ($blocks): void {
+                $query->select('media_item_id')
+                    ->from($blocks)
+                    ->whereNotNull('media_item_id');
+            })
+            ->get();
     }
 
     private function validate(UploadedFile $file, MediaKind $kind, string $mime): void
