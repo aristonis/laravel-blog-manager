@@ -155,6 +155,19 @@ it('resolves an existing tag by public id or model without creating a duplicate'
         ->and(Tag::query()->count())->toBe(1);
 });
 
+it('resolves a tag by its public id regardless of letter case (case-insensitive ULID)', function () {
+    $post = taxoPost();
+    $tag = taxo()->createTag('php'); // public_id stored uppercase (Str::ulid())
+
+    // Attach using a lowercased copy of the public id. ULIDs are case-insensitive
+    // (Crockford base32), so this must resolve the SAME tag — not miss the
+    // public-id branch and auto-create a junk tag from the lowercased string.
+    taxo()->tag($post, [Str::lower($tag->public_id)]);
+
+    expect($post->fresh()->tags->pluck('id')->all())->toBe([$tag->id])
+        ->and(Tag::query()->count())->toBe(1); // no junk tag created
+});
+
 it('throws TagNotFoundException for an unknown tag public id', function () {
     $post = taxoPost();
 

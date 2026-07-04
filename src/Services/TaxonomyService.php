@@ -572,8 +572,14 @@ final class TaxonomyService
 
         $value = trim($tag);
 
-        if (Str::isUlid($value)) {
-            $found = Tag::query()->where('public_id', $value)->first();
+        // Public ids are ULIDs — Crockford base32, which is case-insensitive — but
+        // the stored public_id is fixed-case (uppercase, per Str::ulid()). Normalize
+        // to that case before BOTH the shape check and the lookup so a public id
+        // resolves regardless of the input's letter case (e.g. a lowercased copy).
+        $publicId = Str::upper($value);
+
+        if (Str::isUlid($publicId)) {
+            $found = Tag::query()->where('public_id', $publicId)->first();
 
             if ($found === null) {
                 throw new TagNotFoundException("Tag [{$value}] was not found.", ['id' => $value]);
@@ -582,6 +588,8 @@ final class TaxonomyService
             return $found;
         }
 
+        // From here $value is a NAME: match on the caller's original case (host DB
+        // collation decides case-sensitivity — see config/blog-manager.php).
         $existing = Tag::query()->where('name', $value)->first();
 
         if ($existing !== null) {
