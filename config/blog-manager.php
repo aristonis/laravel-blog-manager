@@ -39,6 +39,12 @@ return [
     | does not yet exist auto-creates it (folksonomy ergonomics); set this to
     | false to require every tag to pre-exist (an unknown tag name then throws
     | TagNotFoundException). Categories always must pre-exist regardless.
+    |
+    | NOTE: tag-name matching (find-or-create by name) follows the HOST database
+    | collation — MySQL's default *_ci collation treats "PHP" and "php" as the
+    | same tag, while SQLite/Postgres default to case-sensitive. The package does
+    | not normalize tag-name case. (Tag *public-id* resolution IS case-insensitive
+    | — ULIDs are Crockford base32; only name matching defers to the DB.)
     */
     'taxonomy' => [
         'tags' => [
