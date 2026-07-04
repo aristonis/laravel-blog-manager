@@ -8,11 +8,11 @@ use Aristonis\BlogManager\Events\MediaDeleted;
 use Aristonis\BlogManager\Exceptions\MediaInUseException;
 use Aristonis\BlogManager\Media\MediaAdapterManager;
 use Aristonis\BlogManager\Media\MediaManager;
+use Aristonis\BlogManager\Media\MediaSource;
 use Aristonis\BlogManager\Media\StoredMediaRef;
 use Aristonis\BlogManager\Models\ContentBlock;
 use Aristonis\BlogManager\Models\MediaItem;
 use Aristonis\BlogManager\Models\Post;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
@@ -54,7 +54,7 @@ function sg3SpyAdapter(): MediaStorageAdapter
             return 'spy';
         }
 
-        public function store(UploadedFile $file, MediaKind $kind): StoredMediaRef
+        public function store(MediaSource $source, MediaKind $kind): StoredMediaRef
         {
             return new StoredMediaRef('spy', 'public', 'spy/path.bin');
         }

@@ -10,6 +10,7 @@ use Aristonis\BlogManager\Exceptions\MediaValidationException;
 use Aristonis\BlogManager\Media\MediaAdapterManager;
 use Aristonis\BlogManager\Media\MediaKindResolver;
 use Aristonis\BlogManager\Media\MediaManager;
+use Aristonis\BlogManager\Media\MediaSource;
 use Aristonis\BlogManager\Media\StoredMediaRef;
 use Aristonis\BlogManager\Models\ContentBlock;
 use Aristonis\BlogManager\Models\MediaItem;
@@ -66,7 +67,7 @@ it('routes storage through a custom adapter and compensates on record failure', 
             return 'fake';
         }
 
-        public function store(UploadedFile $file, MediaKind $kind): StoredMediaRef
+        public function store(MediaSource $source, MediaKind $kind): StoredMediaRef
         {
             return new StoredMediaRef('fake', 'd', 'fake/path.bin');
         }

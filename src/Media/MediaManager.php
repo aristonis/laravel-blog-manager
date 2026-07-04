@@ -35,23 +35,37 @@ final class MediaManager
         private readonly ServiceAuthorizer $guard,
     ) {}
 
-    public function store(UploadedFile $file): MediaItem
+    /**
+     * Primary entry: persist a binary described by a {@see MediaSource} value object
+     * (a path XOR a stream, plus caller-supplied metadata) and record a first-class
+     * MediaItem. The order is guard -> validate -> store -> record; if the record
+     * fails the stored binary is compensated so nothing is orphaned. The MIME is
+     * trusted from the source (the package never re-sniffs the bytes — FR-84).
+     *
+     * SECURITY (host duty): a caller passing `size: 0` (unknown length) bypasses the
+     * per-kind max-size cap (O-4). The host must enforce its own byte limit at the
+     * transport layer BEFORE calling this method for untrusted, unknown-length content.
+     */
+    public function storeSource(MediaSource $source): MediaItem
     {
+        // Guard FIRST so authorization cannot be bypassed via either entry point
+        // (AC-64) — the store(UploadedFile) overload delegates here and does not
+        // re-guard, keeping MEDIA_UPLOAD enforced exactly once.
         $this->guard->ensure(Abilities::MEDIA_UPLOAD);
-        $mime = $file->getMimeType() ?: $file->getClientMimeType();
-        $kind = $this->kinds->resolve($mime);
 
-        $this->validate($file, $kind, $mime);
+        $kind = $this->kinds->resolve($source->mime);
+
+        $this->validate($source, $kind);
 
         $adapter = $this->adapters->adapter();
-        $ref = $adapter->store($file, $kind);
+        $ref = $adapter->store($source, $kind);
 
         try {
             $media = MediaItem::forceCreate([
                 'kind' => $kind,
-                'mime' => $mime,
-                'size' => (int) ($file->getSize() ?: 0),
-                'original_filename' => $file->getClientOriginalName(),
+                'mime' => $source->mime,
+                'size' => $source->size,
+                'original_filename' => $source->originalFilename,
                 'adapter' => $ref->adapter,
                 'disk' => $ref->disk,
                 'path' => $ref->path,
@@ -66,6 +80,24 @@ final class MediaManager
 
             throw new MediaStorageFailedException('Failed to record the stored media item.', [], $e);
         }
+    }
+
+    /**
+     * Convenience overload for the common HTTP path: build a {@see MediaSource} from
+     * an uploaded file and delegate to {@see self::storeSource()}. MIME is the
+     * server-detected type with the client-supplied type as fallback; the binary is
+     * sourced from the upload's real path. Behavior-preserving (AC-61) — the guard,
+     * validation, storage, and events all run in storeSource().
+     */
+    public function store(UploadedFile $file): MediaItem
+    {
+        return $this->storeSource(new MediaSource(
+            path: $file->getRealPath() ?: $file->getPathname(),
+            stream: null,
+            mime: $file->getMimeType() ?: $file->getClientMimeType(),
+            originalFilename: $file->getClientOriginalName(),
+            size: (int) ($file->getSize() ?: 0),
+        ));
     }
 
     /**
@@ -168,14 +200,18 @@ final class MediaManager
             ->get();
     }
 
-    private function validate(UploadedFile $file, MediaKind $kind, string $mime): void
+    private function validate(MediaSource $source, MediaKind $kind): void
     {
+        $mime = $source->mime;
+
         /** @var array<int, string> $allowed */
         $allowed = (array) config("blog-manager.media.allowed_mime.{$kind->value}", []);
         if (! in_array($mime, $allowed, true)) {
-            // $mime can fall back to the attacker-controlled client MIME, so
-            // interpolating it raw enables CRLF / log injection. Strip control
-            // chars for the MESSAGE only; the raw value stays in context (M8).
+            // $mime is caller-supplied (for an upload it can fall back to the
+            // attacker-controlled client MIME), so interpolating it raw enables
+            // CRLF / log injection. Strip control chars for the MESSAGE only; the
+            // raw value stays in context (M8, FR-85). This sanitize now lives in the
+            // shared pipeline, so it applies to every source type — not just uploads.
             $safeMime = preg_replace('/[\p{C}]/u', '', $mime) ?? '';
 
             throw new MediaValidationException(
@@ -185,7 +221,10 @@ final class MediaManager
         }
 
         $max = (int) config("blog-manager.media.max_size.{$kind->value}", 0);
-        $size = (int) ($file->getSize() ?: 0);
+        // size:0 means "unknown length" (e.g. an unbounded stream); with $size = 0
+        // this guard is already false, so an unknown-length source deliberately
+        // skips the cap (O-4). Documented behavior, not a silent bypass.
+        $size = $source->size;
         if ($max > 0 && $size > $max) {
             throw new MediaValidationException(
                 "File exceeds the maximum size for {$kind->value}.",
