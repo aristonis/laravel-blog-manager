@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Aristonis\BlogManager\Support;
 
+use Aristonis\BlogManager\Exceptions\SlugExhaustedException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Str;
 
 /**
@@ -35,6 +37,14 @@ final class SlugGenerator
      * fallback itself can never loop forever.
      */
     private const MAX_RANDOM_ATTEMPTS = 5;
+
+    /**
+     * Bounded retry budget for {@see retryOnCollision()}. Mirrors
+     * BlockService::MAX_APPEND_RETRIES: after this many consecutive lost slug
+     * races (each a committed same-slug winner appearing between the unique()
+     * check and the insert), the helper stops retrying and fails loud.
+     */
+    public const MAX_COLLISION_RETRIES = 3;
 
     /**
      * Return a slug unique within $modelClass's `slug` column. $base is used as-is
@@ -83,14 +93,83 @@ final class SlugGenerator
             }
         }
 
+        // FR-86 — every random candidate collided (astronomically unlikely for a
+        // 128-bit ULID suffix). Fail loud with a typed domain exception rather
+        // than silently returning a still-taken slug that would trip a raw
+        // unique-constraint QueryException at the insert site.
+        if ($this->taken($modelClass, $candidate, $ignoreId)) {
+            throw new SlugExhaustedException(
+                'Could not mint a unique slug for ['.$modelClass.'] from base ['.$slug
+                .'] after exhausting the random-suffix budget.',
+                ['model' => $modelClass, 'base' => $slug, 'ignoreId' => $ignoreId],
+            );
+        }
+
         return $candidate;
+    }
+
+    /**
+     * Run a slug-writing operation, retrying on a lost slug race. $operation is
+     * self-contained: it re-derives a fresh slug via unique() and inserts/saves
+     * the row (typically the whole DB::transaction(...) closure). On a
+     * UniqueConstraintViolationException — a concurrent writer committed the
+     * same slug between our unique() check and our insert — the committed winner
+     * is now visible to unique(), so re-running the operation picks a fresh
+     * suffix. Only UniqueConstraintViolationException is retried: an FK /
+     * NOT-NULL / deadlock QueryException propagates unretried and unmislabelled
+     * (mirrors BlockService::append). After $tries exhausted collisions it fails
+     * loud with SlugExhaustedException. The happy path returns on the first
+     * successful attempt, adding zero overhead.
+     *
+     * It retries on ANY UniqueConstraintViolationException raised inside the
+     * closure and, on exhaustion, surfaces SlugExhaustedException — so a
+     * NON-slug unique violation inside a wrapped operation (e.g. a
+     * cross-post-copied block public_id in RevisionService::restore, or a
+     * name-race in renameCategory) is retried and relabelled as slug
+     * exhaustion. This is a deliberate simplification; a caller that needs
+     * constraint-precise handling must not route through this helper.
+     *
+     * @internal Not part of the supported public API — hosts must not depend on
+     * it. The package's services use it internally; its behavior may change
+     * without a major-version bump.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $operation
+     * @param  array<string, mixed>  $context
+     * @return T
+     */
+    public function retryOnCollision(callable $operation, array $context = [], int $tries = self::MAX_COLLISION_RETRIES): mixed
+    {
+        $last = null;
+
+        for ($attempt = 0; $attempt < $tries; $attempt++) {
+            try {
+                return $operation();
+            } catch (UniqueConstraintViolationException $e) {
+                $last = $e;
+            }
+        }
+
+        throw new SlugExhaustedException(
+            'Could not mint a unique slug after '.$tries.' collision retries.',
+            $context,
+            $last,
+        );
     }
 
     /**
      * Whether $candidate is already used in $modelClass's `slug` column,
      * excluding $ignoreId so a row never collides with itself.
      *
+     * Impure by nature: it reads live table state, so a concurrent writer can
+     * flip the answer between two calls with identical arguments. The
+     * annotation stops static analysis from folding the FR-86 exhaustion
+     * re-check into an "always true" branch.
+     *
      * @param  class-string<Model>  $modelClass
+     *
+     * @phpstan-impure
      */
     private function taken(string $modelClass, string $candidate, ?int $ignoreId): bool
     {

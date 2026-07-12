@@ -140,26 +140,35 @@ final class RevisionService
             );
         }
 
-        return DB::transaction(function () use ($post, $snapshot, $resolution, $restorePublishState, $revision): Post {
-            // Non-destructive: preserve the current state before overwriting it.
-            // record() (not snapshot()) so retention pruning can't evict the source
-            // revision mid-restore; retention re-applies on the next capture.
-            $this->record($post, 'auto: before restore', null);
+        // Wrap the whole restore transaction: applyAttributes derives + saves the
+        // slug inside it (:348), so a lost slug race there must roll the tx back
+        // and re-run cleanly. A collision at save() throws BEFORE the
+        // PostRestored event and before commit, so the retry re-creates the
+        // "before restore" record + rebuild with no duplicate snapshot and no
+        // leaked event; an exhausted budget surfaces SlugExhaustedException,
+        // never a raw QueryException (FR-87, R-1).
+        return $this->slugs->retryOnCollision(function () use ($post, $snapshot, $resolution, $restorePublishState, $revision): Post {
+            return DB::transaction(function () use ($post, $snapshot, $resolution, $restorePublishState, $revision): Post {
+                // Non-destructive: preserve the current state before overwriting it.
+                // record() (not snapshot()) so retention pruning can't evict the source
+                // revision mid-restore; retention re-applies on the next capture.
+                $this->record($post, 'auto: before restore', null);
 
-            $slugChanged = $this->applyAttributes($post, (array) ($snapshot['post'] ?? []), $restorePublishState);
-            $this->rebuildBlocks($post, $resolution['blocks']);
+                $slugChanged = $this->applyAttributes($post, (array) ($snapshot['post'] ?? []), $restorePublishState);
+                $this->rebuildBlocks($post, $resolution['blocks']);
 
-            // Repaired (media remapped or dropped) => the restored state differs
-            // from the source revision, so record it as a fresh revision.
-            if ($resolution['repaired']) {
-                $this->record($post, 'restored (repaired)', null);
-            }
+                // Repaired (media remapped or dropped) => the restored state differs
+                // from the source revision, so record it as a fresh revision.
+                if ($resolution['repaired']) {
+                    $this->record($post, 'restored (repaired)', null);
+                }
 
-            $fresh = $post->refresh();
-            event(new PostRestored($fresh, $revision, $slugChanged));
+                $fresh = $post->refresh();
+                event(new PostRestored($fresh, $revision, $slugChanged));
 
-            return $fresh;
-        });
+                return $fresh;
+            });
+        }, ['model' => Post::class, 'operation' => 'restore', 'id' => $post->public_id]);
     }
 
     /**

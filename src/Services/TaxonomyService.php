@@ -105,16 +105,21 @@ final class TaxonomyService
         $name = $this->requireName($name);
         $base = $this->baseSlug($slug, $name);
 
-        return DB::transaction(function () use ($name, $base): Tag {
-            $tag = Tag::create([
-                'name' => $name,
-                'slug' => $this->slugs->unique(Tag::class, $base, fallback: 'tag'),
-            ]);
+        // The slug is derived inside the tx; wrap the whole transaction so a lost
+        // slug race re-derives a fresh suffix on retry and an exhausted budget
+        // surfaces SlugExhaustedException, never a raw QueryException (FR-87).
+        return $this->slugs->retryOnCollision(function () use ($name, $base): Tag {
+            return DB::transaction(function () use ($name, $base): Tag {
+                $tag = Tag::create([
+                    'name' => $name,
+                    'slug' => $this->slugs->unique(Tag::class, $base, fallback: 'tag'),
+                ]);
 
-            event(new TagCreated($tag));
+                event(new TagCreated($tag));
 
-            return $tag;
-        });
+                return $tag;
+            });
+        }, ['model' => Tag::class, 'operation' => 'create']);
     }
 
     /**
@@ -129,19 +134,26 @@ final class TaxonomyService
         $name = $this->requireName($name);
         $this->requireUniqueCategoryName($name, $category->id);
 
-        return DB::transaction(function () use ($category, $name, $slug): Category {
-            $category->name = $name;
+        // A supplied slug is re-derived inside the tx; wrap the whole transaction
+        // so a lost slug race re-derives a fresh suffix on retry and an exhausted
+        // budget surfaces SlugExhaustedException, never a raw QueryException
+        // (FR-87 / D38). The requireUniqueCategoryName pre-check still guards the
+        // common name collision before the tx.
+        return $this->slugs->retryOnCollision(function () use ($category, $name, $slug): Category {
+            return DB::transaction(function () use ($category, $name, $slug): Category {
+                $category->name = $name;
 
-            if ($slug !== null) {
-                $category->slug = $this->slugs->unique(Category::class, Str::slug($slug), $category->id, 'category');
-            }
+                if ($slug !== null) {
+                    $category->slug = $this->slugs->unique(Category::class, Str::slug($slug), $category->id, 'category');
+                }
 
-            $category->save();
+                $category->save();
 
-            event(new CategoryUpdated($category));
+                event(new CategoryUpdated($category));
 
-            return $category->refresh();
-        });
+                return $category->refresh();
+            });
+        }, ['model' => Category::class, 'operation' => 'rename', 'id' => $category->public_id]);
     }
 
     /**
@@ -154,19 +166,25 @@ final class TaxonomyService
         $this->guard->ensure(Abilities::TAXONOMY_MANAGE);
         $name = $this->requireName($name);
 
-        return DB::transaction(function () use ($tag, $name, $slug): Tag {
-            $tag->name = $name;
+        // A supplied slug is re-derived inside the tx; wrap the whole transaction
+        // so a lost slug race re-derives a fresh suffix on retry and an exhausted
+        // budget surfaces SlugExhaustedException, never a raw QueryException
+        // (FR-87 / D38).
+        return $this->slugs->retryOnCollision(function () use ($tag, $name, $slug): Tag {
+            return DB::transaction(function () use ($tag, $name, $slug): Tag {
+                $tag->name = $name;
 
-            if ($slug !== null) {
-                $tag->slug = $this->slugs->unique(Tag::class, Str::slug($slug), $tag->id, 'tag');
-            }
+                if ($slug !== null) {
+                    $tag->slug = $this->slugs->unique(Tag::class, Str::slug($slug), $tag->id, 'tag');
+                }
 
-            $tag->save();
+                $tag->save();
 
-            event(new TagUpdated($tag));
+                event(new TagUpdated($tag));
 
-            return $tag->refresh();
-        });
+                return $tag->refresh();
+            });
+        }, ['model' => Tag::class, 'operation' => 'rename', 'id' => $tag->public_id]);
     }
 
     /**

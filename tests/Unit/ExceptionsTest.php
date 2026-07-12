@@ -20,6 +20,7 @@ use Aristonis\BlogManager\Exceptions\MediaInUseException;
 use Aristonis\BlogManager\Exceptions\MediaStorageFailedException;
 use Aristonis\BlogManager\Exceptions\MediaValidationException;
 use Aristonis\BlogManager\Exceptions\PostNotFoundException;
+use Aristonis\BlogManager\Exceptions\SlugExhaustedException;
 use Aristonis\BlogManager\Exceptions\TagNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,6 +41,7 @@ dataset('exceptions', [
     'category not found' => [CategoryNotFoundException::class, 5001, 'blog.category.not_found', 404],
     'tag not found' => [TagNotFoundException::class, 5002, 'blog.tag.not_found', 404],
     'invalid taxonomy data' => [InvalidTaxonomyDataException::class, 5003, 'blog.taxonomy.invalid_data', 422],
+    'slug exhausted' => [SlugExhaustedException::class, 9002, 'blog.slug.exhausted', 500],
     'invalid seo data' => [InvalidSeoDataException::class, 6001, 'blog.seo.invalid_data', 422],
     'generic' => [GenericBlogManagerException::class, 9001, 'blog.error', 500],
 ]);

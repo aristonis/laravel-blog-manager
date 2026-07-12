@@ -39,20 +39,28 @@ final class PostService
     {
         $this->guard->ensure(Abilities::POST_CREATE);
         $title = $this->requireTitle($attributes['title'] ?? null);
-        $slug = $this->slugs->unique(Post::class, $this->baseSlug($attributes, $title), fallback: 'post');
 
-        return DB::transaction(function () use ($title, $slug, $attributes): Post {
-            $post = Post::create([
-                'title' => $title,
-                'slug' => $slug,
-                'author_id' => $attributes['author_id'] ?? null,
-                'status' => PostStatus::Draft,
-            ]);
+        // The slug derive lives INSIDE the retried closure so a lost slug race
+        // (a concurrent writer committing the same slug between the unique()
+        // check and our INSERT) re-derives a fresh suffix on retry, and an
+        // exhausted budget surfaces a typed SlugExhaustedException — never a raw
+        // QueryException (FR-87).
+        return $this->slugs->retryOnCollision(function () use ($title, $attributes): Post {
+            $slug = $this->slugs->unique(Post::class, $this->baseSlug($attributes, $title), fallback: 'post');
 
-            event(new PostCreated($post));
+            return DB::transaction(function () use ($title, $slug, $attributes): Post {
+                $post = Post::create([
+                    'title' => $title,
+                    'slug' => $slug,
+                    'author_id' => $attributes['author_id'] ?? null,
+                    'status' => PostStatus::Draft,
+                ]);
 
-            return $post;
-        });
+                event(new PostCreated($post));
+
+                return $post;
+            });
+        }, ['model' => Post::class, 'operation' => 'create']);
     }
 
     /**
@@ -146,25 +154,31 @@ final class PostService
     public function update(Post $post, array $attributes): Post
     {
         $this->guard->ensure(Abilities::POST_UPDATE, $post);
-        $changes = [];
 
-        if (array_key_exists('title', $attributes)) {
-            $changes['title'] = $this->requireTitle($attributes['title']);
-        }
-        if (array_key_exists('slug', $attributes)) {
-            $changes['slug'] = $this->slugs->unique(Post::class, Str::slug((string) $attributes['slug']), $post->id, 'post');
-        }
-        if (array_key_exists('author_id', $attributes)) {
-            $changes['author_id'] = $attributes['author_id'];
-        }
+        // The $changes build (incl. the slug derive) lives INSIDE the retried
+        // closure so a lost slug race re-derives a fresh suffix on retry;
+        // re-deriving title/author on a retry is harmless (FR-87).
+        return $this->slugs->retryOnCollision(function () use ($post, $attributes): Post {
+            $changes = [];
 
-        return DB::transaction(function () use ($post, $changes): Post {
-            $post->update($changes);
+            if (array_key_exists('title', $attributes)) {
+                $changes['title'] = $this->requireTitle($attributes['title']);
+            }
+            if (array_key_exists('slug', $attributes)) {
+                $changes['slug'] = $this->slugs->unique(Post::class, Str::slug((string) $attributes['slug']), $post->id, 'post');
+            }
+            if (array_key_exists('author_id', $attributes)) {
+                $changes['author_id'] = $attributes['author_id'];
+            }
 
-            event(new PostUpdated($post));
+            return DB::transaction(function () use ($post, $changes): Post {
+                $post->update($changes);
 
-            return $post->refresh();
-        });
+                event(new PostUpdated($post));
+
+                return $post->refresh();
+            });
+        }, ['model' => Post::class, 'operation' => 'update', 'id' => $post->public_id]);
     }
 
     public function delete(Post $post): void
