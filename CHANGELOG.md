@@ -4,12 +4,16 @@ All notable changes to `aristonis/laravel-blog-manager` are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Milestones 1, 2 & 3: Hardening + SEO metadata + pre-1.0 freeze
+## [Unreleased]
 
-A correctness/concurrency/data-at-scale hardening pass (M1), **per-post SEO metadata**
-(M2), plus two pre-1.0 freeze decisions (M3): a configurable **author key type** and a
-`MediaSource` **media-input contract** (a breaking `MediaStorageAdapter` port change).
-Core-only — no HTTP layer; drive it through the `BlogManager` facade. Still untagged.
+## [1.0.0] - 2026-07-12
+
+The first tagged release. It consolidates the M1 correctness/concurrency/data-at-scale
+hardening pass, the M2 **per-post SEO metadata**, and the M3 pre-1.0 freeze (a
+configurable **author key type** and a `MediaSource` **media-input contract** — a
+breaking `MediaStorageAdapter` port change), plus the Milestone C release-gate
+hardening (FR-86..91). Core-only — no HTTP layer; drive it through the `BlogManager`
+facade.
 
 ### BREAKING — `MediaStorageAdapter` port input (Milestone 3)
 - **`MediaStorageAdapter::store()` now takes a `MediaSource`, not an `UploadedFile`.** The
@@ -21,8 +25,37 @@ Core-only — no HTTP layer; drive it through the `BlogManager` facade. Still un
   the `stream` is exposed via the `stream()` reader method (the property is `private` — the VO is
   immutable). The caller-supplied `$source->mime` / `$source->originalFilename` / `$source->size` replace the
   `UploadedFile` accessors. **Do not close a supplied stream** — the caller owns and closes the
-  resource it opened (the adapter only reads it). This is a deliberate pre-1.0 break, shipped
-  under `[Unreleased]` because the package is still untagged.
+  resource it opened (the adapter only reads it). This break was made pre-1.0, while the
+  package was still untagged, and ships as part of this first tagged release.
+
+### Added — Release gate (Milestone C)
+- **`MediaManager::orphanedLazy(): LazyCollection`** — a streaming counterpart to
+  `orphaned()`. It cursors the same anti-join so a host can reclaim orphaned media on a
+  large media table without materialising the whole result set in memory.
+- **`SlugExhaustedException`** (`9002` / `blog.slug.exhausted` / 500) — a typed domain
+  exception for an exhausted slug generation / collision-retry budget. Replaces the raw
+  `QueryException` that could leak on a lost slug race.
+- **MySQL + PostgreSQL CI lane** — a service-container job (MySQL 8, Postgres 16) runs the
+  suite plus an EXPLAIN smoke and uuid/ulid native-column assertions against real drivers.
+  CI-only; no runtime dependency added.
+
+### Changed — Release gate (Milestone C)
+- **`ResolvedSeo` moved from `Blocks\` to `Seo\`.** It is now
+  `Aristonis\BlogManager\Seo\ResolvedSeo`. A host importing it must update its `use`. This
+  is pre-1.0, so not a SemVer break, but it is called out here because the tag freezes the
+  namespace.
+
+### Fixed — Release gate (Milestone C)
+- **Slug-race collisions surface a typed exception, never a raw `QueryException`.** Post
+  create/update, tag auto-create, and revision restore wrap their slug derive + write in a
+  bounded collision retry that re-derives a fresh slug on a lost race and, only on
+  exhaustion, throws `SlugExhaustedException`.
+- **`MediaManager::delete()` no longer double-dispatches `MediaDeleted`.** When the locked
+  row is already gone (a concurrent already-committed delete won the `FOR UPDATE`),
+  `delete()` early-returns, so the event fires exactly once across the racers.
+- **`MediaManager::orphaned()` uses a `whereNotExists` anti-join** (was `whereNotIn` over a
+  subquery), dropping a redundant `whereNotNull` guard. Same result set, index-driven and
+  portable across SQLite/MySQL/Postgres.
 
 ### Added — Author key type + media source (Milestone 3)
 - **Configurable author key type.** New config `blog-manager.author_key_type` ∈

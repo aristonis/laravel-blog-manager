@@ -28,6 +28,7 @@ Revision errors reuse the post/media ranges (1003, 3005).
 | 2002 | `blog.block.invalid_data` | 422 | `InvalidBlockDataException` | Block payload failed type validation |
 | 2003 | `blog.block.kind_mismatch` | 422 | `BlockKindMismatchException` | Media kind ≠ block type |
 | 2004 | `blog.block.position_out_of_range` | 422 | `BlockPositionOutOfRangeException` | Reorder target outside [0, n-1] |
+| 2005 | `blog.block.position_conflict` | 409 | `BlockPositionConflictException` | Append could not resolve a free position after retries |
 | 3001 | `blog.media.validation_failed` | 422 | `MediaValidationException` | Disallowed MIME or oversize |
 | 3002 | `blog.media.adapter_not_found` | 500 | `MediaAdapterNotFoundException` | Configured media driver missing |
 | 3003 | `blog.media.in_use` | 409 | `MediaInUseException` | Delete refused — still referenced |
@@ -40,6 +41,10 @@ Revision errors reuse the post/media ranges (1003, 3005).
 | 5003 | `blog.taxonomy.invalid_data` | 422 | `InvalidTaxonomyDataException` | Empty name or duplicate category name |
 | 6001 | `blog.seo.invalid_data` | 422 | `InvalidSeoDataException` | Unknown SEO field, non-string override, or a value over its length cap |
 | 9001 | `blog.error` | 500 | `GenericBlogManagerException` | Unexpected fallback |
+| 9002 | `blog.slug.exhausted` | 500 | `SlugExhaustedException` | Slug generation/collision-retry budget exhausted |
+
+`SlugExhaustedException` (9002) is **non-retryable by contract**: the package already exhausted its bounded
+internal retry budget, so a caller must not blindly re-issue the same request expecting it to succeed.
 
 Add a new error by extending `BlogManagerException` with its own `NUMBER_CODE` + `TEXT_CODE` constants and an
 `$httpStatus` — no central registry to edit.

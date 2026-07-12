@@ -34,6 +34,17 @@ The package ships **no controllers, routes, resources, or HTTP middleware** (D25
 the host wires its own transport (web controllers, JSON API, Livewire, CLI — whatever it needs) over the same
 services, and owns its own API contract and business rules.
 
+The `Illuminate\Http` imports in `Exceptions\BlogManagerException::render()` (`JsonResponse`/`Request`) are
+**not** a residual API surface under D25. They are exception ergonomics: `render()` returns a JSON body only when
+the caller `expectsJson()`, and returns `null` otherwise so Laravel's own handler runs. It never registers a
+route or overrides the host's global exception handler.
+
+## Migrations — additive from 1.0 (NFR-34)
+Before 1.0, schema and index changes edited the original create-table migrations in place. From the 1.0 tag on,
+any schema or index change ships as a **new guarded migration**, never an edit to an existing create-migration.
+A host that has already run the package migrations upgrades by pulling the new migrations and running
+`php artisan migrate` — no re-run or rollback of a create-migration. See [UPGRADE.md](UPGRADE.md).
+
 ## Data model
 ```
 Post (1) ──< ContentBlock (ordered by position) >── (0..1) MediaItem

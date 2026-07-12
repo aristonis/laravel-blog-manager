@@ -19,6 +19,13 @@ it('resolves the BlogManager facade', function () {
     expect(BlogManagerFacade::version())->toBe(BlogManager::VERSION);
 });
 
+it('pins the released 1.0.0 version string', function () {
+    // AC-79: the VERSION constant is the single source of truth for the release
+    // string; version() reflects it. Pinned so a stray bump fails the suite.
+    expect(BlogManager::VERSION)->toBe('1.0.0')
+        ->and(BlogManagerFacade::version())->toBe('1.0.0');
+});
+
 it('exposes the taxonomy service accessor', function () {
     expect(app('blog-manager')->taxonomy())->toBeInstanceOf(TaxonomyService::class);
 });

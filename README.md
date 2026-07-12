@@ -6,7 +6,8 @@ A backend Laravel package for managing blog posts as **ordered content blocks** 
 the UI **and the transport** — drive the package through the `BlogManager` facade / services and wire your own
 controllers or API over them.
 
-> Status: **v0.5 in development.** Requires PHP ^8.2 and Laravel 12 or 13.
+> Status: **v1.0.** Supports Laravel 12 and 13 on PHP ^8.2. Core-only — no HTTP layer;
+> drive it through the `BlogManager` facade.
 
 ## Install
 
