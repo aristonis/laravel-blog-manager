@@ -35,40 +35,12 @@ function migrateAuthorKeyType(?string $type): void
         config()->set('blog-manager.author_key_type', $type);
     }
 
-    // Rebuild the WHOLE package schema with the new config. Dropping only
-    // blog_posts / blog_post_revisions fails on MySQL/Postgres because
-    // blog_content_blocks holds a FK to blog_posts (SQLite alone tolerates
-    // dropping a referenced table). Tearing down in reverse creation order —
-    // children before parents — is foreign-key-safe on every driver; then
-    // re-running up() rebuilds every table with author_key_type applied.
-    dropAllPackageTables();
-    foreach (packageMigrationFiles() as $file) {
-        (require $file)->up();
-    }
-}
+    Schema::dropIfExists('blog_post_revisions');
+    Schema::dropIfExists('blog_posts');
 
-/**
- * Package migration files, sorted by creation order (000001 … 000009).
- *
- * @return list<string>
- */
-function packageMigrationFiles(): array
-{
-    $files = glob(__DIR__.'/../../database/migrations/*.php') ?: [];
-    sort($files);
-
-    return $files;
-}
-
-/**
- * Drop every package table in reverse creation order — children before parents —
- * so the teardown is foreign-key-safe on MySQL/Postgres, not only SQLite.
- */
-function dropAllPackageTables(): void
-{
-    foreach (array_reverse(packageMigrationFiles()) as $file) {
-        (require $file)->down();
-    }
+    $base = __DIR__.'/../../database/migrations';
+    (require $base.'/2026_07_01_000001_create_blog_posts_table.php')->up();
+    (require $base.'/2026_07_01_000004_create_blog_post_revisions_table.php')->up();
 }
 
 /**
@@ -156,7 +128,8 @@ it('created_by column type matches author_id for every key, with no standalone i
 
 it('fails loud on an unknown value before Schema::create, leaving the table absent (AC-56)', function () {
     config()->set('blog-manager.author_key_type', 'int');
-    dropAllPackageTables();
+    Schema::dropIfExists('blog_post_revisions');
+    Schema::dropIfExists('blog_posts');
 
     $migration = require __DIR__.'/../../database/migrations/2026_07_01_000001_create_blog_posts_table.php';
 

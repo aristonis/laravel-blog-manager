@@ -35,9 +35,6 @@ facade.
 - **`SlugExhaustedException`** (`9002` / `blog.slug.exhausted` / 500) — a typed domain
   exception for an exhausted slug generation / collision-retry budget. Replaces the raw
   `QueryException` that could leak on a lost slug race.
-- **MySQL + PostgreSQL CI lane** — a service-container job (MySQL 8, Postgres 16) runs the
-  suite plus an EXPLAIN smoke and uuid/ulid native-column assertions against real drivers.
-  CI-only; no runtime dependency added.
 
 ### Changed — Release gate (Milestone C)
 - **`ResolvedSeo` moved from `Blocks\` to `Seo\`.** It is now
