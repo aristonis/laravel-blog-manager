@@ -125,7 +125,16 @@ final class MediaManager
             // (H2 defect #2). Do not drop this lock: it is what the FK contends on.
             // NOTE: a fully-concurrent *uncommitted* append remains a narrow,
             // inherent window of the nullOnDelete design and is not solved here.
-            MediaItem::query()->whereKey($item->getKey())->lockForUpdate()->first();
+            $locked = MediaItem::query()->whereKey($item->getKey())->lockForUpdate()->first();
+
+            // Idempotency (FR-88): if the FOR UPDATE finds no row, a concurrent
+            // already-committed delete won the race and removed it. Early-return
+            // before the in-use check, the row delete, and the afterCommit binary
+            // cleanup + MediaDeleted dispatch — so MediaDeleted fires EXACTLY ONCE
+            // across the racers (the winner already fired it) instead of twice.
+            if ($locked === null) {
+                return;
+            }
 
             if ($item->blocks()->exists()) {
                 throw new MediaInUseException('Media item is still referenced by a block.', ['media' => $item->public_id]);

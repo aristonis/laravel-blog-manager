@@ -204,6 +204,37 @@ it('does not surface a post-commit binary failure and still dispatches MediaDele
     Event::assertDispatched(MediaDeleted::class, 1);
 });
 
+it('early-returns and fires MediaDeleted exactly once when the locked row is already gone', function () {
+    // AC-68 / SG-2 (FR-88): idempotent delete under a lost FOR UPDATE race.
+    //
+    // Two racers call delete() on the same MediaItem. On a real driver, the loser's
+    // lockForUpdate()->first() sees the row already committed-deleted by the winner
+    // and finds nothing. SQLite serialises, so we drive the null branch
+    // deterministically: obtain the $item model instance, then delete its row from
+    // the DB directly (this stands in for the winner's already-committed delete),
+    // then invoke delete() — so the in-transaction lockForUpdate()->first() returns
+    // null. The loser must early-return: no exception, no second MediaDeleted, no
+    // second adapter binary-delete (the winner already fired both exactly once).
+    Event::fake([MediaDeleted::class]);
+
+    $spy = sg3SpyAdapter();
+    app(MediaAdapterManager::class)->extend('spy', fn () => $spy);
+
+    $media = sg3MediaItem();
+
+    // Winner already committed its delete: the row is gone before the loser's tx.
+    MediaItem::query()->whereKey($media->getKey())->delete();
+
+    // Loser's delete() must be a no-op — no exception raised.
+    app(MediaManager::class)->delete($media);
+
+    // The loser must NOT re-dispatch MediaDeleted for the already-gone row.
+    Event::assertNotDispatched(MediaDeleted::class);
+    // ...and must NOT invoke the adapter binary-delete a second time.
+    expect($spy->deleteCount)->toBe(0)
+        ->and($spy->deleteCalled)->toBeFalse();
+});
+
 it('deletes the binary before dispatching MediaDeleted (binary-first ordering)', function () {
     $spy = sg3SpyAdapter();
     app(MediaAdapterManager::class)->extend('spy', fn () => $spy);
