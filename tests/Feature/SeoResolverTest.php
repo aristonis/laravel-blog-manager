@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Aristonis\BlogManager\Blocks\ResolvedSeo;
 use Aristonis\BlogManager\Models\ContentBlock;
 use Aristonis\BlogManager\Models\Post;
 use Aristonis\BlogManager\Models\PostSeo;
+use Aristonis\BlogManager\Seo\ResolvedSeo;
 use Aristonis\BlogManager\Services\SeoService;
 use Illuminate\Support\Facades\DB;
 
@@ -48,6 +48,16 @@ function countResolverQueries(callable $fn): int
 
     return $count;
 }
+
+// ── AC-73 / FR-90: the 1.0 host contract lives under the Seo\ namespace ───────
+//
+// ResolvedSeo was misfiled under Blocks\; SG-4 pins it to Seo\ before the 1.0 tag.
+// Assert the new FQN resolves and the old one no longer autoloads.
+
+it('exposes ResolvedSeo under the Seo namespace, not the old Blocks namespace', function () {
+    expect(class_exists('Aristonis\\BlogManager\\Seo\\ResolvedSeo'))->toBeTrue()
+        ->and(class_exists('Aristonis\\BlogManager\\Blocks\\ResolvedSeo'))->toBeFalse();
+});
 
 // ── full fallback chain: stored overrides win ─────────────────────────────────
 

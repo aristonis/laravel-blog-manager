@@ -6,11 +6,11 @@ namespace Aristonis\BlogManager\Services;
 
 use Aristonis\BlogManager\Authorization\Abilities;
 use Aristonis\BlogManager\Authorization\ServiceAuthorizer;
-use Aristonis\BlogManager\Blocks\ResolvedSeo;
 use Aristonis\BlogManager\Events\PostSeoUpdated;
 use Aristonis\BlogManager\Exceptions\InvalidSeoDataException;
 use Aristonis\BlogManager\Models\Post;
 use Aristonis\BlogManager\Models\PostSeo;
+use Aristonis\BlogManager\Seo\ResolvedSeo;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;

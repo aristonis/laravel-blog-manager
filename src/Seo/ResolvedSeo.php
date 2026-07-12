@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Aristonis\BlogManager\Blocks;
+namespace Aristonis\BlogManager\Seo;
 
 /**
  * Immutable, presentation-ready SEO meta-bag: the resolved page/title/robots/og

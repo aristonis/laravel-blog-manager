@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use Aristonis\BlogManager\Authorization\Abilities;
-use Aristonis\BlogManager\Blocks\ResolvedSeo;
 use Aristonis\BlogManager\Events\PostSeoUpdated;
 use Aristonis\BlogManager\Exceptions\AuthorizationDeniedException;
 use Aristonis\BlogManager\Exceptions\InvalidSeoDataException;
 use Aristonis\BlogManager\Models\Post;
 use Aristonis\BlogManager\Models\PostSeo;
+use Aristonis\BlogManager\Seo\ResolvedSeo;
 use Aristonis\BlogManager\Services\SeoService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
