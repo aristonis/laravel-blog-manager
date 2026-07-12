@@ -15,10 +15,12 @@ use Aristonis\BlogManager\Exceptions\MediaStorageFailedException;
 use Aristonis\BlogManager\Exceptions\MediaValidationException;
 use Aristonis\BlogManager\Models\ContentBlock;
 use Aristonis\BlogManager\Models\MediaItem;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\LazyCollection;
 use Throwable;
 
 /**
@@ -198,15 +200,53 @@ final class MediaManager
      */
     public function orphaned(): Collection
     {
+        return $this->orphanedQuery()->get();
+    }
+
+    /**
+     * Streaming counterpart to {@see self::orphaned()} for large media tables: the
+     * same orphan set, but yielded row-by-row via a database cursor instead of
+     * materialising the whole result in memory at once. Prefer this over
+     * {@see self::orphaned()} whenever the orphan set may be large (reclamation
+     * sweeps). The underlying query is deferred until the returned LazyCollection is
+     * enumerated.
+     *
+     * SECURITY: identical to {@see self::orphaned()} — the yielded MediaItem rows
+     * carry storage internals (disk / path / adapter); gate any EXTERNAL exposure
+     * behind an admin / MEDIA_DELETE authorization check.
+     *
+     * @return LazyCollection<int, MediaItem>
+     */
+    public function orphanedLazy(): LazyCollection
+    {
+        return $this->orphanedQuery()->cursor();
+    }
+
+    /**
+     * Shared anti-join builder behind both orphan reads: media items for which NO
+     * content block correlates via content_blocks.media_item_id. Uses a correlated
+     * `whereNotExists` (portable across SQLite/MySQL/Postgres and index-driven on
+     * content_blocks.media_item_id) rather than a `whereNotIn` subquery.
+     *
+     * A block with a NULL media_item_id needs no explicit guard: under the correlated
+     * `whereColumn(content_blocks.media_item_id, blog_media_items.id)` a NULL yields
+     * `NULL = id` → UNKNOWN, so the EXISTS row never matches and a NULL-referencing
+     * block never counts as a reference (the former `whereNotNull` guard was dead —
+     * FR-89 / AC-72).
+     *
+     * @return Builder<MediaItem>
+     */
+    private function orphanedQuery(): Builder
+    {
         $blocks = (new ContentBlock)->getTable();
+        $mediaTable = (new MediaItem)->getTable();
 
         return MediaItem::query()
-            ->whereNotIn('id', function (QueryBuilder $query) use ($blocks): void {
-                $query->select('media_item_id')
+            ->whereNotExists(function (QueryBuilder $query) use ($blocks, $mediaTable): void {
+                $query->select(DB::raw(1))
                     ->from($blocks)
-                    ->whereNotNull('media_item_id');
-            })
-            ->get();
+                    ->whereColumn("{$blocks}.media_item_id", "{$mediaTable}.id");
+            });
     }
 
     private function validate(MediaSource $source, MediaKind $kind): void
