@@ -91,7 +91,11 @@ it('routes storage through a custom adapter and compensates on record failure', 
     $media = app(MediaManager::class)->store(UploadedFile::fake()->image('a.png'));
     expect($media->adapter)->toBe('fake')->and($media->path)->toBe('fake/path.bin');
 
-    // force the DB record to fail -> the stored binary is compensated (no orphan)
+    // force the DB record to fail -> the stored binary is compensated (no orphan).
+    // Drop the child table first so the parent drop is FK-safe on MySQL/Postgres
+    // (blog_content_blocks holds a FK to blog_media_items; SQLite tolerates dropping
+    // the referenced table directly, MySQL/Postgres reject it).
+    Schema::drop('blog_content_blocks');
     Schema::drop('blog_media_items');
     expect(fn () => app(MediaManager::class)->store(UploadedFile::fake()->image('b.png')))
         ->toThrow(MediaStorageFailedException::class);
