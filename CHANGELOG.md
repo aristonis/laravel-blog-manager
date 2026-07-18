@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-18
+
 ### Added
 - **Laravel Boost integration.** The package now ships AI guidelines and skills under `resources/boost/`
   in the [Laravel Boost](https://laravel.com/docs/boost) standard layout: an always-on `core` guideline plus
@@ -16,6 +18,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 ### Removed
 - The ad-hoc `.ai/` agent-docs folder. Its content moved into `resources/boost/`, now the single source of
   truth for AI-agent context; README and docs links repointed accordingly.
+- The in-package `docs/` folder. Human guides moved to the standalone
+  [`laravel-blog-manager-docs`](https://github.com/aristonis/laravel-blog-manager-docs) repo, published at
+  [docs.aristonis.org](https://docs.aristonis.org/laravel-blog-manager/); README links repointed there.
 
 ## [1.0.0] - 2026-07-12
 
