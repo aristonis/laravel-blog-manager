@@ -21,8 +21,7 @@ The service provider is auto-discovered. See the **[Getting started guide](https
 ## Documentation — two audiences
 
 - **For developers → [documentation site](https://aristonis.org/open-source/laravel-blog-manager/docs)** — human guides:
-  getting started, usage, configuration, architecture, extending, error codes, events. Source lives in the
-  separate [`laravel-blog-manager-docs`](https://github.com/aristonis/laravel-blog-manager-docs) repo.
+  getting started, usage, configuration, architecture, extending, error codes, events.
 - **For AI agents → [Laravel Boost](https://laravel.com/docs/boost)** — this package ships Boost guidelines and
   skills in [`resources/boost/`](resources/boost/) that describe how to *use and extend* it correctly. Install
   Boost in your app and run `php artisan boost:install` (or `boost:update --discover`); your coding agent then

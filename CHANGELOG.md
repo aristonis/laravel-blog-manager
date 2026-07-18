@@ -18,9 +18,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 ### Removed
 - The ad-hoc `.ai/` agent-docs folder. Its content moved into `resources/boost/`, now the single source of
   truth for AI-agent context; README and docs links repointed accordingly.
-- The in-package `docs/` folder. Human guides moved to the standalone
-  [`laravel-blog-manager-docs`](https://github.com/aristonis/laravel-blog-manager-docs) repo, published at
-  [docs.aristonis.org](https://docs.aristonis.org/laravel-blog-manager/); README links repointed there.
+- The in-package `docs/` folder. Human guides moved to the
+  [documentation site](https://aristonis.org/open-source/laravel-blog-manager/docs); README links repointed there.
 
 ## [1.0.0] - 2026-07-12
 
