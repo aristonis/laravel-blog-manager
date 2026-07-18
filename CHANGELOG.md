@@ -6,6 +6,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 
 ## [Unreleased]
 
+### Added
+- **Laravel Boost integration.** The package now ships AI guidelines and skills under `resources/boost/`
+  in the [Laravel Boost](https://laravel.com/docs/boost) standard layout: an always-on `core` guideline plus
+  seven on-demand skills (`blog-manager-usage`, `-add-block-type`, `-add-media-adapter`, `-add-authorizer`,
+  `-revisions`, `-taxonomy`, `-seo`). Hosts that use Boost auto-discover them via `php artisan boost:install`
+  or `boost:update --discover`.
+
+### Removed
+- The ad-hoc `.ai/` agent-docs folder. Its content moved into `resources/boost/`, now the single source of
+  truth for AI-agent context; README and docs links repointed accordingly.
+
 ## [1.0.0] - 2026-07-12
 
 Initial release.

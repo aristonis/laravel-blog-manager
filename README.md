@@ -22,8 +22,10 @@ The service provider is auto-discovered. See **[docs/getting-started.md](docs/ge
 
 - **For developers → [`docs/`](docs/)** — human guides: getting started, usage, configuration, architecture,
   extending, error codes, events.
-- **For AI agents → [`.ai/`](.ai/)** — agent skills describing how to *use and extend* this package correctly:
-  start at [`.ai/index.md`](.ai/index.md), rules in [`.ai/conventions.md`](.ai/conventions.md).
+- **For AI agents → [Laravel Boost](https://laravel.com/docs/boost)** — this package ships Boost guidelines and
+  skills in [`resources/boost/`](resources/boost/) that describe how to *use and extend* it correctly. Install
+  Boost in your app and run `php artisan boost:install` (or `boost:update --discover`); your coding agent then
+  auto-loads the always-on guideline plus the on-demand `blog-manager-*` skills.
 
 ## What it does
 

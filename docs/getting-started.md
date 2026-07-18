@@ -1,6 +1,7 @@
 # Getting started
 
-> Human documentation. For AI-agent usage, see [`../.ai/`](../.ai/).
+> Human documentation. For AI-agent usage, this package ships [Laravel Boost](https://laravel.com/docs/boost)
+> guidelines and skills in [`../resources/boost/`](../resources/boost/).
 
 ## Requirements
 - PHP `^8.2`

@@ -1,8 +1,8 @@
 # Architecture
 
 A modular Laravel package: Eloquent persistence + transaction-owning services, with three **pluggable seams**
-(registries) at exactly the points meant for extension. The hard rules live in
-[../.ai/conventions.md](../.ai/conventions.md).
+(registries) at exactly the points meant for extension. The hard rules live in the shipped Boost guideline
+[../resources/boost/guidelines/core.blade.php](../resources/boost/guidelines/core.blade.php).
 
 ## Layers
 - **Models** (`Models/`) — `Post`, `ContentBlock`, `MediaItem`. Pure persistence: relations, casts, opaque ULID
@@ -52,4 +52,4 @@ Post (1) ──< ContentBlock (ordered by position) >── (0..1) MediaItem
   title, slug, author_id?  (image/video/file reference a MediaItem)
 ```
 Positions are unique + contiguous per post, maintained by `BlockService`. Deleting a post cascades its blocks;
-media items are independent and retained. See [../.ai/conventions.md](../.ai/conventions.md) for the full rules.
+media items are independent and retained. See [../resources/boost/guidelines/core.blade.php](../resources/boost/guidelines/core.blade.php) for the full rules.
