@@ -16,11 +16,11 @@ composer require aristonis/laravel-blog-manager
 php artisan vendor:publish --tag=blog-manager-config
 ```
 
-The service provider is auto-discovered. See the **[Getting started guide](https://docs.aristonis.org/laravel-blog-manager/getting-started/)**.
+The service provider is auto-discovered. See the **[Getting started guide](https://aristonis.org/open-source/laravel-blog-manager/docs)**.
 
 ## Documentation — two audiences
 
-- **For developers → [documentation site](https://docs.aristonis.org/laravel-blog-manager/)** — human guides:
+- **For developers → [documentation site](https://aristonis.org/open-source/laravel-blog-manager/docs)** — human guides:
   getting started, usage, configuration, architecture, extending, error codes, events. Source lives in the
   separate [`laravel-blog-manager-docs`](https://github.com/aristonis/laravel-blog-manager-docs) repo.
 - **For AI agents → [Laravel Boost](https://laravel.com/docs/boost)** — this package ships Boost guidelines and
