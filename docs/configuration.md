@@ -23,7 +23,7 @@ php artisan vendor:publish --tag=blog-manager-config
 | `tables.post_seo` | `blog_post_seo` | Per-post SEO metadata table (1:1 with a post). |
 | `seo.default_og_type` | `article` | `og:type` the resolver falls back to when a post sets no `og_type`. |
 | `seo.excerpt_length` | `155` | Max character length of the auto-derived meta/og description excerpt (mb-safe, word-boundary). |
-| `media.adapter` | `filesystem` | Active storage driver key (see [../.ai/skills/add-media-adapter.md](../.ai/skills/add-media-adapter.md)). |
+| `media.adapter` | `filesystem` | Active storage driver key (see [../resources/boost/skills/blog-manager-add-media-adapter/SKILL.md](../resources/boost/skills/blog-manager-add-media-adapter/SKILL.md)). |
 | `media.disk` | `public` | Filesystem disk the default adapter writes to. |
 | `media.path` | `blog-media` | Directory within the disk. |
 | `media.kind_map` | `image/* => image, video/* => video` | MIME → kind patterns; unmatched falls back to `file`. |

@@ -1,3 +1,8 @@
+---
+name: blog-manager-revisions
+description: Capture, list, fetch, and non-destructively restore post version history with aristonis/laravel-blog-manager's RevisionService, including auto-capture on publish, retention pruning, and missing-media remap on restore. Use when working with post revisions, snapshots, or restoring an earlier version.
+---
+
 # Skill — Manage post revisions
 
 How to use the revision history: capture, list, fetch, and non-destructively restore a post version.

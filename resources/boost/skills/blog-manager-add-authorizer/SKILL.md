@@ -1,3 +1,8 @@
+---
+name: blog-manager-add-authorizer
+description: Wire aristonis/laravel-blog-manager ability checks to your own authorization scheme (Laravel Gate, spatie/laravel-permission, or custom logic) by implementing the Authorizer contract and registering a driver on AuthorizationManager. Use when enforcing who may create/update/delete posts, manage blocks, or upload/delete media.
+---
+
 # Skill — add an authorization driver
 
 Goal: back blog ability checks with your own scheme (spatie/laravel-permission, custom logic) **without editing

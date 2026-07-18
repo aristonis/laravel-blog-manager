@@ -1,3 +1,8 @@
+---
+name: blog-manager-add-block-type
+description: Register a new content block type in aristonis/laravel-blog-manager without editing the core (OCP) by implementing the BlockType contract and registering it on BlockTypeRegistry. Use when adding a custom block kind (quote, embed, gallery, etc.).
+---
+
 # Skill — add a block type
 
 Goal: add a new kind of content block **without editing the core** (OCP).

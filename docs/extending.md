@@ -3,18 +3,18 @@
 Every extension is a **registration**, never an edit to the package core (OCP). Step-by-step recipes live in the
 AI-agent skills and apply equally to humans:
 
-- **Add a block type** → [../.ai/skills/add-block-type.md](../.ai/skills/add-block-type.md)
+- **Add a block type** → [../resources/boost/skills/blog-manager-add-block-type/SKILL.md](../resources/boost/skills/blog-manager-add-block-type/SKILL.md)
   Implement `Contracts\BlockType` (or extend `Blocks\Types\MediaBlockType`), then
   `app(BlockTypeRegistry::class)->register(new MyType)` from your provider.
 
-- **Add a media storage adapter** → [../.ai/skills/add-media-adapter.md](../.ai/skills/add-media-adapter.md)
+- **Add a media storage adapter** → [../resources/boost/skills/blog-manager-add-media-adapter/SKILL.md](../resources/boost/skills/blog-manager-add-media-adapter/SKILL.md)
   Implement `Contracts\MediaStorageAdapter`, then
   `app(MediaAdapterManager::class)->extend('key', fn () => new MyAdapter)` and set `media.adapter`.
   The port's input is a `Media\MediaSource` (`store(MediaSource $source, MediaKind $kind): StoredMediaRef`) —
   read `$source->path` **or** `$source->stream` (exactly one is set), **never close a supplied stream** (the
   caller owns it), and treat `$source->size === 0` as unknown length.
 
-- **Add an authorization driver** → [../.ai/skills/add-authorizer.md](../.ai/skills/add-authorizer.md)
+- **Add an authorization driver** → [../resources/boost/skills/blog-manager-add-authorizer/SKILL.md](../resources/boost/skills/blog-manager-add-authorizer/SKILL.md)
   Implement `Contracts\Authorizer`, then
   `app(AuthorizationManager::class)->extend('key', fn () => new MyAuthorizer)` and set `authorization.driver`.
 

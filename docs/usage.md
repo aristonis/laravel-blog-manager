@@ -257,4 +257,4 @@ JSON `{ "error_code", "error_key", "message" }` when the client expects JSON (se
 
 ## Configuration & authorization
 See [configuration.md](configuration.md). Authorization is pluggable and off by default — see
-[../.ai/skills/add-authorizer.md](../.ai/skills/add-authorizer.md).
+[../resources/boost/skills/blog-manager-add-authorizer/SKILL.md](../resources/boost/skills/blog-manager-add-authorizer/SKILL.md).

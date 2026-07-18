@@ -1,3 +1,8 @@
+---
+name: blog-manager-seo
+description: Attach per-post SEO overrides and resolve them into a host-serializable meta-bag with aristonis/laravel-blog-manager's SeoService — the package stores and resolves values with fallbacks but never emits markup; the host renders the tags. Use when setting meta title/description, canonical, robots, or Open Graph data for a post.
+---
+
 # Skill — Manage SEO metadata
 
 How to attach per-post SEO overrides and resolve them into a host-serializable meta-bag. Core-only — call the

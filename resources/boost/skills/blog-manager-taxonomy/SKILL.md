@@ -1,3 +1,8 @@
+---
+name: blog-manager-taxonomy
+description: Classify posts with categories (curated, unique) and tags (free-form, auto-created) and query posts by term using aristonis/laravel-blog-manager's TaxonomyService. Use when categorizing/tagging posts, managing the term catalog, or listing posts by category or tag.
+---
+
 # Skill — Manage taxonomy (categories & tags)
 
 How to classify posts along two independent axes and retrieve posts by classification. Core-only — call the

@@ -1,3 +1,8 @@
+---
+name: blog-manager-add-media-adapter
+description: Add a custom media storage backend (S3 with custom logic, a CDN, spatie/laravel-medialibrary) to aristonis/laravel-blog-manager by implementing the MediaStorageAdapter contract and registering a driver on MediaAdapterManager, without editing the core. Use when changing where or how media binaries are stored.
+---
+
 # Skill — add a media storage adapter
 
 Goal: store media through a different backend (e.g. `spatie/laravel-medialibrary`, a CDN, S3 with custom logic)
@@ -28,5 +33,3 @@ Goal: store media through a different backend (e.g. `spatie/laravel-medialibrary
 ## Rules
 - The adapter touches the **binary only** — validation, the `media_items` record, and reference-safe deletion
   stay in `MediaManager`.
-- Return everything needed to resolve/remove the file later in the `StoredMediaRef` (`disk`/`path` or `meta`).
-- Storing is `validate -> store -> record`; if you throw from `store()`, no record is created.

@@ -1,19 +1,25 @@
-# .ai — AI agent skills
+# .ai — package-dev workspace
 
-Hidden folder of **skills for AI agents** working on this package. If you are an agent, read these before
-changing code — they encode how to use and extend the package correctly and fast.
+The consumer-facing AI context (guidelines + skills) now lives in **`resources/boost/`** in the
+[Laravel Boost](https://laravel.com/docs/13.x/boost) standard layout, so a host app that installs this package
+and runs `php artisan boost:install` / `boost:update` picks it up automatically. That directory is the **single
+source of truth** — do not duplicate it here.
 
-## Read order
-1. **[conventions.md](conventions.md)** — the hard rules. Non-negotiable. Read first.
-2. Task skills (added per step-group in `skills/`):
-   - `skills/using-the-package.md` — create a post, add ordered blocks, attach media (SG-7).
-   - `skills/add-block-type.md` — register a new block type without editing the core (SG-4).
-   - `skills/add-media-adapter.md` — register a media storage adapter (SG-5).
-   - `skills/add-authorizer.md` — register an authorization driver (SG-6).
-   - `skills/manage-revisions.md` — capture, list, and non-destructively restore post revisions (v0.3).
-   - `skills/manage-taxonomy.md` — classify posts with categories & tags, and read posts by term (v0.4).
-   - `skills/manage-seo.md` — attach per-post SEO metadata and resolve it to a host-serializable meta-bag (v0.5).
-   - `skills/run-tests.md` — Pest, Pint, Larastan commands (SG-9 finalized).
+## Shipped to consumers (via Boost)
+- **Guidelines (always-on):** [`resources/boost/guidelines/core.blade.php`](../resources/boost/guidelines/core.blade.php)
+  — orientation + the hard rules.
+- **Skills (on-demand):** [`resources/boost/skills/`](../resources/boost/skills/)
+  - `blog-manager-usage` — create a post, add ordered blocks, attach media.
+  - `blog-manager-add-block-type` — register a new block type without editing the core.
+  - `blog-manager-add-media-adapter` — register a media storage adapter.
+  - `blog-manager-add-authorizer` — register an authorization driver.
+  - `blog-manager-revisions` — capture, list, and non-destructively restore post revisions.
+  - `blog-manager-taxonomy` — classify posts with categories & tags, and read posts by term.
+  - `blog-manager-seo` — attach per-post SEO metadata and resolve it to a host-serializable meta-bag.
+
+## Package-dev only (NOT shipped)
+- [`conventions.md`](conventions.md) — pointer to the shipped guideline (the hard rules).
+- [`skills/run-tests.md`](skills/run-tests.md) — Pest / Pint / Larastan commands for developing **this** package.
 
 ## Orientation
 - **Package:** `Aristonis\BlogManager\` (PSR-4 in `src/`). Composer: `aristonis/laravel-blog-manager`.

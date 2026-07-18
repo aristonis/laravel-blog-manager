@@ -1,3 +1,8 @@
+---
+name: blog-manager-usage
+description: Use aristonis/laravel-blog-manager to create posts, append and reorder ordered content blocks (text and media), store media, and render a post. Use when creating, editing, or rendering blog content through the BlogManager facade or the Post/Block/Media services.
+---
+
 # Skill — use the package
 
 Create posts, add ordered blocks (text + media), reorder, and render.
@@ -27,10 +32,3 @@ BlogManager::blocks()->reorder($post, array_reverse($ids));
 // read back, ordered + sanitized
 $rendered = BlogManager::render(BlogManager::posts()->find($post->public_id));
 ```
-
-## Rules
-- **Store media before attaching it.** An image/video/file block references a media item by id; the media
-  **kind must match** the block type or it throws `BlockKindMismatchException`.
-- Positions are managed for you — `append` goes to the end, `remove`/`reorder` keep them contiguous.
-- All mutations run in a transaction and fire an after-commit event (`PostCreated`, `BlockAppended`, …).
-- Identify posts/blocks/media by their **public id** (ULID), never the numeric id.
